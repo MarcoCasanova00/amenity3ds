@@ -1,7 +1,7 @@
 # Makefile — gbc_dnb (DnB III-style sampled-break player for Game Boy)
 GBDK_HOME := ../gbc/gbdk/
 LCC := $(GBDK_HOME)bin/lcc
-LCCFLAGS := -Wl-yt1 -Wl-yo8
+LCCFLAGS := -Wl-yt1 -Wl-yo16
 
 PROJECT := dnb3
 SRCDIR := src

@@ -16,11 +16,6 @@ static const char* const BREAK_NAMES[NBREAKS] = {
 	"CLN086", "CLN105", "PRC095", "PRC098"
 };
 
-typedef void (*playfn)(void);
-static const playfn PLAY[NBREAKS] = {
-	play_break0, play_break1, play_break2, play_break3
-};
-
 // ---- 1 ms tick ------------------------------------------------------------
 volatile UINT32 g_tick;
 void tim_isr(void) __interrupt(1) { g_tick++; }
@@ -37,6 +32,15 @@ static const char* const MODE_N[3] = { "S24", "S16", "S8" };
 static UINT8 out_state = 0;
 static UINT32 ck_last = 0, ck_ph = 0;
 static UINT16 pulse_count = 0;
+
+static void start_break(void) {
+	switch (cur) {
+		case 0: play_break0(); break;
+		case 1: play_break1(); break;
+		case 2: play_break2(); break;
+		default: play_break3(); break;
+	}
+}
 
 static void put_str(UINT8 x, UINT8 y, const char* s) {
 	gotoxy(x, y);
@@ -114,15 +118,15 @@ void main(void) {
 		UINT8 down = keys & ~prevkeys;
 		prevkeys = keys;
 
-		if (down & J_RIGHT) { cur = (cur + 1) % NBREAKS; if (running) PLAY[cur](); draw_screen(); }
-		if (down & J_LEFT)  { cur = (cur + NBREAKS - 1) % NBREAKS; if (running) PLAY[cur](); draw_screen(); }
+		if (down & J_RIGHT) { cur = (cur + 1) % NBREAKS; if (running) start_break(); draw_screen(); }
+		if (down & J_LEFT)  { cur = (cur + NBREAKS - 1) % NBREAKS; if (running) start_break(); draw_screen(); }
 		if (down & J_UP)    { if (bpm < 250) { bpm++; set_bpm_tma(); } draw_screen(); }
 		if (down & J_DOWN)  { if (bpm > 61)  { bpm--; set_bpm_tma(); } draw_screen(); }
 		if (down & (J_A | J_START)) {
 			running = !running;
 			pulse_count = 0;
 			ck_ph = 0;
-			if (running) PLAY[cur]();
+			if (running) start_break();
 			draw_screen();
 		}
 		if (down & J_B) { clk_mode = (clk_mode + 1) % 3; draw_screen(); }
@@ -132,7 +136,7 @@ void main(void) {
 		}
 
 		// restart loop when sample ends
-		if (running && play_length == 0) PLAY[cur]();
+		if (running && play_length == 0) start_break();
 
 		// clock pulses
 		if (running) {
