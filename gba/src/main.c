@@ -1,5 +1,5 @@
-// GBA DnB break player — 16-bit Direct Sound via Timer-IRQ FIFO,
-// Mode 3 UI redrawn only when the state changes (no flicker).
+// GBA DnB break player — 16-bit Direct Sound (fixed regs!) + PSG kit fallback.
+// UI: Mode 3, redrawn only on change (no flicker).
 #include <stdint.h>
 
 #include "regs.h"
@@ -9,7 +9,11 @@
 #define NBREAKS 4
 #define SR_WORDS 11025          // words/sec (each word = 2 samples -> 22.05 kHz)
 
+#define SDS_H 0x0306            // DMG 100% + DS A 100% + A left/right
+
 static int cur = 0, bpm = 175, running = 0;
+static int snd_mode = 0;        // 0 = Direct Sound break, 1 = PSG kit
+static unsigned psg_step_idx = 0;
 
 static const char* const BREAK_NAMES[NBREAKS] = {
 	"CLN086", "CLN105", "PRC095", "PRC098"
@@ -25,7 +29,7 @@ static int brk_len_for(int i) {
 	}
 }
 
-// ---- audio state (read by IRQ) -------------------------------------------
+// ---- Direct Sound state (read by IRQ) -------------------------------------
 static const int16_t* a_src = 0;
 static int a_len = 0;
 static volatile int a_pos = 0;
@@ -67,7 +71,7 @@ static void audio_start_break(void) {
 	a_len = brk_len_for(cur);
 	if (a_len > 22050 * 5) a_len = 22050 * 5;
 	a_pos = 0;
-	a_active = 1;
+	a_active = (snd_mode == 0) ? 1 : 0;
 }
 
 static void audio_stop(void) {
@@ -79,6 +83,43 @@ static void set_timer(void) {
 	if (period < 2) period = 2;
 	REG_TM0CNT_L = (uint16_t)(period - 1);
 	REG_TM0CNT_H = 0x00C0;
+}
+
+// ---- PSG kit fallback (channels 1 & 4) ------------------------------------
+static void psg_kick(void) {
+	REG_NR10 = 0x0060;
+	REG_NR11 = 0x0080;
+	REG_NR12 = 0x00F2;
+	REG_NR13 = 0x0010;
+	REG_NR14 = 0x00C0;
+}
+
+static void psg_snare(void) {
+	REG_NR41 = 0x003F;
+	REG_NR42 = 0x00E2;
+	REG_NR43 = 0x001B;
+	REG_NR44 = 0x00C0;
+}
+
+static void psg_hat(int open) {
+	REG_NR41 = 0x001F;
+	REG_NR42 = open ? 0x00D3 : 0x00E0;
+	REG_NR43 = 0x005C;
+	REG_NR44 = 0x0080;
+}
+
+static void psg_step(unsigned step) {
+	switch (step) {
+		case 0: case 4: case 8: case 12:
+			psg_kick(); psg_hat(0); break;
+		case 2: case 6: case 10: case 14:
+			psg_hat(1); break;
+		case 3: case 7: case 11: case 15:
+			psg_hat(0); break;
+		case 5: case 13:
+			psg_hat(1); break;
+	}
+	if (step == 4 || step == 12) psg_snare();
 }
 
 // ---- UI (Mode 3) ----------------------------------------------------------
@@ -94,7 +135,7 @@ static void draw_ui(void) {
 	gfx_clear(COL_BG);
 
 	gfx_str(4, 3, "AMENITY-DNB", COL_AMB, COL_BG);
-	gfx_str(176, 3, "16bit", COL_DIM, COL_BG);
+	gfx_str(168, 3, snd_mode ? "PSG" : "DS", snd_mode ? COL_GRN : COL_TXT, COL_BG);
 
 	gfx_str(4, 15, "BPM", COL_DIM, COL_BG);
 	gfx_num(44, 15, bpm, COL_TXT, COL_BG);
@@ -125,13 +166,13 @@ static void draw_ui(void) {
 				((i == 0 && running) || (i == 1 && !running)) ? 0x0000 : COL_TXT, cc);
 	}
 
-	gfx_str(4, 142, "L/R brk   U/D bpm   A play", COL_DIM, COL_BG);
+	gfx_str(4, 142, "L/R brk  U/D bpm  A play  SEL snd", COL_DIM, COL_BG);
 }
 
 void main(void) {
-	REG_DISPCNT = 0x0403;         // Mode 3 + BG2
+	REG_DISPCNT = 0x0403;
 	REG_SOUNDCNT_X = 0x0080;
-	REG_SOUNDCNT_H = 0x0F0F;
+	REG_SOUNDCNT_H = SDS_H;
 
 	*(void**)0x03007FFC = (void*)irq_handler;
 	REG_IE = IE_TIMER0;
@@ -143,6 +184,7 @@ void main(void) {
 
 	int prevKeys = 0x03FF;
 	int need_draw = 1;
+	unsigned psg_frame = 0;
 
 	for (;;) {
 		int keys = REG_KEYINPUT ^ 0x03FF;
@@ -159,7 +201,24 @@ void main(void) {
 			need_draw = 1;
 		}
 		if (down & KEY_B) { audio_stop(); cur = 0; if (running) audio_start_break(); need_draw = 1; }
-		if (down & KEY_SELECT) { audio_stop(); cur = (cur + 2) % NBREAKS; if (running) audio_start_break(); need_draw = 1; }
+		if (down & KEY_SELECT) {
+			snd_mode ^= 1;
+			audio_stop();
+			if (running) audio_start_break();
+			need_draw = 1;
+		}
+
+		// PSG kit sequencing (only in PSG mode)
+		if (running && snd_mode == 1) {
+			unsigned eighth = 1800u / (unsigned)bpm;   // frames per 8th @60fps
+			if (eighth < 1) eighth = 1;
+			if (psg_frame >= eighth) {
+				psg_frame = 0;
+				psg_step(psg_step_idx);
+				psg_step_idx = (psg_step_idx + 1) & 15;
+			}
+			psg_frame++;
+		}
 
 		if (need_draw) {
 			while (REG_VCOUNT >= 160) ;

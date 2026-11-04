@@ -15,6 +15,17 @@
 #define REG_FIFO_A     (*(volatile uint32_t*)0x040000A0)
 #define REG_FIFO_B     (*(volatile uint32_t*)0x040000A4)
 
+// PSG channels 1 & 4
+#define REG_NR10 (*(volatile uint16_t*)0x04000060)
+#define REG_NR11 (*(volatile uint8_t*)0x04000062)
+#define REG_NR12 (*(volatile uint8_t*)0x04000063)
+#define REG_NR13 (*(volatile uint8_t*)0x04000064)
+#define REG_NR14 (*(volatile uint8_t*)0x04000065)
+#define REG_NR41 (*(volatile uint8_t*)0x04000070)
+#define REG_NR42 (*(volatile uint8_t*)0x04000071)
+#define REG_NR43 (*(volatile uint8_t*)0x04000072)
+#define REG_NR44 (*(volatile uint8_t*)0x04000073)
+
 #define REG_TM0CNT_L (*(volatile uint16_t*)0x04000100)
 #define REG_TM0CNT_H (*(volatile uint16_t*)0x04000102)
 #define REG_TM1CNT_L (*(volatile uint16_t*)0x04000104)
