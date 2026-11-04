@@ -75,13 +75,18 @@ from the HOME menu.
 | LEFT/RIGHT | Mode: S24 (MIDI 24 PPQN) / S16 / S8 |
 | UP/DOWN | BPM 61–250 |
 | A / START | Run / stop |
-| B | Metronome click on/off (default on) |
+| B | Sound on/off |
+| L | Jungle kit (kick/snare/hats) on/off |
+| SELECT | Output: LINK (serial port) ↔ JACK (headphone audio sync) |
 
-Output is on the link port's **serial-out wire** — pair with an ArduinoBoy for
-5-pin MIDI clock, or use the serial-out → tip / ground → sleeve adapter for
-Volca / Pocket Operator. An audible metronome click (synced to the pulses,
-accented every 16th) plays from the Game Boy speaker so you can hear it on
-real hardware and emulators; B mutes it.
+Output is on the link port's **serial-out wire** in LINK mode — pair with an
+ArduinoBoy for 5-pin MIDI clock, or use the serial-out → tip / ground →
+sleeve adapter for Volca / Pocket Operator. In JACK mode the clock is sent as
+an audio pulse train from the Game Boy's headphone/3.5mm output instead
+(same idea as the 3DS build). The metronome click (LINK mode) and the jungle
+kit play from the speaker so you can hear the ROM working on real hardware and
+emulators; B silences them. NOTE: the kit is a chiptune kick/snare/hat kit on
+the APU — a sampled-break player (HobbyChop-style) is a larger follow-up.
 
 ## Audio / licensing notes
 

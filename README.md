@@ -79,12 +79,16 @@ on the cable:
 - **S16 / S8** = nanoloop click rates → drive a Volca/Pocket Operator
   directly (serial-out wire → tip, ground → sleeve adapter).
 - Controls: LEFT/RIGHT = mode, UP/DOWN = BPM 61–250, A/START = run/stop,
-  B = metronome click on/off (default on).
-- The ROM is a clock-out tool: it speaks through the link port, not the
-  speaker. A metronome click (synced to the pulses, accented every 16th)
-  plays from the Game Boy speaker so you can hear it working on real hardware
-  and emulators; on an emulator there is no link port, so the sound is your
-  confirmation it is running.
+  B = sound on/off, L = jungle kit on/off, SELECT = output LINK (serial) /
+  JACK (headphone audio sync).
+- The ROM is a clock-out tool: it speaks through the link port by default.
+  A metronome click (synced to the pulses, accented every 16th) plays from
+  the Game Boy speaker so you can hear it working on real hardware and
+  emulators; on emulators there is no link port, so the sound is your
+  confirmation it is running. In JACK mode the clock is emitted as an audio
+  pulse on the headphone/3.5mm out instead (Volca/PO-style sync). The L
+  jungle kit is a chiptune kick/snare/hat kit sequenced to the same BPM —
+  not a sampled break (that's a bigger, future feature).
 
 Build with `make -C gbc` (needs the GBDK toolchain downloaded there). Note:
 like the 3DS app, this is built and cross-compiled but **not yet verified on
