@@ -185,8 +185,21 @@ void main(void) {
 	int prevKeys = 0x03FF;
 	int need_draw = 1;
 	unsigned psg_frame = 0;
+	int tone_frames = 90;        // 1.5s startup test tone on channel 2
 
 	for (;;) {
+		// startup test tone (2s) - if you hear this, audio works
+		if (tone_frames > 0) {
+			if (tone_frames == 90) {
+				REG_NR21 = 0x0080;
+				REG_NR22 = 0x00F0;
+				REG_NR23 = 0x004A;   // ~1760 Hz
+				REG_NR24 = 0x0080;
+			}
+			tone_frames--;
+			if (tone_frames == 0) REG_NR22 = 0x00;
+		}
+
 		int keys = REG_KEYINPUT ^ 0x03FF;
 		int down = keys & ~prevKeys;
 		prevKeys = keys;

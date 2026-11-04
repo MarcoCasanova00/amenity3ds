@@ -26,6 +26,12 @@
 #define REG_NR43 (*(volatile uint8_t*)0x04000072)
 #define REG_NR44 (*(volatile uint8_t*)0x04000073)
 
+// PSG channel 2
+#define REG_NR21 (*(volatile uint8_t*)0x04000068)
+#define REG_NR22 (*(volatile uint8_t*)0x04000069)
+#define REG_NR23 (*(volatile uint8_t*)0x0400006A)
+#define REG_NR24 (*(volatile uint8_t*)0x0400006B)
+
 #define REG_TM0CNT_L (*(volatile uint16_t*)0x04000100)
 #define REG_TM0CNT_H (*(volatile uint16_t*)0x04000102)
 #define REG_TM1CNT_L (*(volatile uint16_t*)0x04000104)
