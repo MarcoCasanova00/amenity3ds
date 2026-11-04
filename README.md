@@ -1,8 +1,18 @@
-# Amenity3DS
+# Amenity — 3DS · GBC · GBA
 
-A live jungle-style **break slicer** for the **Nintendo 3DS** — an original
-implementation inspired by Amenity (ejtb76/amenity, live jungle firmware for
-the M-VAVE FM-1), rebuilt as native 3DS homebrew.
+Live jungle-style break instruments for the **Nintendo 3DS**, **Game Boy/
+Game Boy Color** and **Game Boy Advance**, inspired by Amenity (ejtb76/
+amenity, live jungle firmware for the M-VAVE FM-1).
+
+| Build | Platform | What it does |
+|---|---|---|
+| 3DS CIA | Native 3DS homebrew | Full-quality break slicer (touch UI, pitch-locked stretch, phrase variation, audio clock-out) |
+| `gbc/amenclk.gb` | Game Boy Color/DMG | Clock-out tool (link port + headphone JACK sync), metronome, chiptune kit |
+| `gbc_dnb/` | Game Boy Color/DMG | DnB III-style sampled-break player (4-bit wave streaming, banked) |
+| `gba/amdnb.gba` | Game Boy Advance | Clean 16-bit Direct-Sound break player |
+
+All are original implementations inspired by Amenity's concepts, rebuilt from
+scratch for each platform.
 
 It plays **real drum breaks** from a selectable bank (8 royalty-free breaks
 from the same MusicRadar pack HobbyChop uses in Drum & Bass III), each sliced
