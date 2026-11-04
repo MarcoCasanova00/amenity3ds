@@ -136,7 +136,9 @@ static void flip(void) {
 
 // ---- main -----------------------------------------------------------------
 void main(void) {
-	REG_DISPCNT = 0x0004 | 0x0010;   // Mode 4, page 1 visible
+	REG_DISPCNT = 0x0404;         // Mode 4 + BG2, page 0
+	gfx_clear(VRAM_PAGE0, P_BG);
+	gfx_clear(VRAM_PAGE1, P_BG);
 	gfx_set_palette(P_BG, 12, 10, 9);
 	gfx_set_palette(P_PAN, 58, 54, 50);
 	gfx_set_palette(P_DIM, 17, 17, 16);
