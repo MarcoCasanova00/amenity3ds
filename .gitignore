@@ -13,6 +13,11 @@ source/break_bank.h
 gbc/gbdk/
 gbc/*.tar.gz
 
+# GBC DnB build artifacts (audio-derived data stays private)
+gbc_dnb/res/
+gbc_dnb/obj/
+gbc_dnb/*.gb
+
 # misc
 *.o
 *.elf
