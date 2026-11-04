@@ -1,18 +1,17 @@
-// GBA entry + cartridge header stub.
-// We keep the header minimal (emulator-friendly); checksum + complement are
-// patched after linking by python (see Makefile).
+// GBA entry + cartridge header (exact 0xC0-byte layout).
 	.section .text.start, "ax", %progbits
-	.align 4
+	.balign 4
+
 	.global _start
 
-	// --- raw cartridge header (0xC0 bytes) -------------------------------
+	.org 0x000
 	// 0x000: branch over header to _start
 	.word 0xEA000000 | (((_start - . - 8) >> 2) & 0x00FFFFFF)
-	// 0x004..0x09F: logo + padding (zeroed; emulators do not validate)
+	// 0x004..0x09F: logo + reserved (zeroed; emulators do not validate)
 	.fill 0x9C, 1, 0
 	// 0x0A0: title (12 bytes)
 	.ascii "AMENITYDNB00"
-	// 0x0AC: game code (4), maker (2)
+	// 0x0AC: game code + maker
 	.ascii "AMNB"
 	.ascii "HC"
 	// 0x0B2: fixed 0x96
@@ -30,6 +29,7 @@
 	// 0x0BA: checksum (patched)
 	.byte 0x00
 
+	.org 0x0C0
 _start:
 	// stack
 	ldr	sp, =_stack_top

@@ -18,13 +18,16 @@ build/samples.c build/samples.h: ../tools/make_gba_bank.py $(BREAKS)
 	@mkdir -p build
 	python3 ../tools/make_gba_bank.py ../assets/breaks build/samples
 
-build/crt0.o: src/crt0.s
+build:
+	@mkdir -p build
+
+build/crt0.o: src/crt0.s | build
 	$(CC) $(ARCH) -x assembler-with-cpp -c $< -o $@
 
-build/main.o: src/main.c build/samples.h
+build/main.o: src/main.c build/samples.h | build
 	$(CC) $(ARCH) -Isrc -Ibuild -c $< -o $@
 
-build/samples.o: build/samples.c
+build/samples.o: build/samples.c | build
 	$(CC) $(ARCH) -Isrc -Ibuild -c $< -o $@
 
 build/amdnb.elf: $(OBJS) app.ld
