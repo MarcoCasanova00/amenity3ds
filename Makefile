@@ -80,6 +80,10 @@ $(TARGET).cia: $(TARGET).elf build/banner.bin build/icon.bin
 		-elf $(TARGET).elf
 	@echo "=== built: $@ ==="
 
+3dsx: $(TARGET).elf
+	python3 tools/elf2_3dsx.py $(TARGET).elf build/amenity3ds.3dsx
+	@echo "=== built: build/amenity3ds.3dsx ==="
+
 clean:
 	rm -rf build
 
