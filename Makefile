@@ -26,6 +26,9 @@ OBJS := build/crt0.o \
         build/gfx.o \
         build/startup.o
 
+BANK_H := source/break_bank.h
+BANK_WAVS := $(wildcard assets/breaks/*.wav)
+
 MAKEROM := /tmp/opencode/libs/Project_CTR/makerom/bin/makerom
 BANNERTOOL := /tmp/opencode/libs/bannertool/output/linux-x86_64/bannertool
 
@@ -41,6 +44,21 @@ build/%.o: source/%.c | build
 
 build/%.o: source/%.s | build
 	$(CC) $(CFLAGS) -x assembler-with-cpp -c $< -o $@
+
+$(BANK_H): tools/wav2bank.py $(BANK_WAVS)
+	@if [ -z "$(BANK_WAVS)" ]; then \
+		echo "No WAVs in assets/breaks/ - add them first (see docs/BUILDING.md)."; \
+		exit 1; \
+	fi
+	python3 tools/wav2bank.py
+
+build/engine.o: $(BANK_H)
+
+hosttest: build/host_test
+	./build/host_test
+
+build/host_test: tools/host_test.c source/engine.c $(BANK_H)
+	gcc -O2 -Wall -o $@ tools/host_test.c source/engine.c -Isource -lm
 
 $(TARGET).elf: $(OBJS) source/app.ld
 	$(LD) $(ARCH) -nostartfiles -T source/app.ld -Wl,--gc-sections \
