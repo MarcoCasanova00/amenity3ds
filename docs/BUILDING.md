@@ -75,10 +75,13 @@ from the HOME menu.
 | LEFT/RIGHT | Mode: S24 (MIDI 24 PPQN) / S16 / S8 |
 | UP/DOWN | BPM 61–250 |
 | A / START | Run / stop |
+| B | Metronome click on/off (default on) |
 
 Output is on the link port's **serial-out wire** — pair with an ArduinoBoy for
 5-pin MIDI clock, or use the serial-out → tip / ground → sleeve adapter for
-Volca / Pocket Operator.
+Volca / Pocket Operator. An audible metronome click (synced to the pulses,
+accented every 16th) plays from the Game Boy speaker so you can hear it on
+real hardware and emulators; B mutes it.
 
 ## Audio / licensing notes
 

@@ -78,7 +78,13 @@ on the cable:
   get real 5-pin MIDI clock/start/stop.
 - **S16 / S8** = nanoloop click rates → drive a Volca/Pocket Operator
   directly (serial-out wire → tip, ground → sleeve adapter).
-- Controls: LEFT/RIGHT = mode, UP/DOWN = BPM 61–250, A/START = run/stop.
+- Controls: LEFT/RIGHT = mode, UP/DOWN = BPM 61–250, A/START = run/stop,
+  B = metronome click on/off (default on).
+- The ROM is a clock-out tool: it speaks through the link port, not the
+  speaker. A metronome click (synced to the pulses, accented every 16th)
+  plays from the Game Boy speaker so you can hear it working on real hardware
+  and emulators; on an emulator there is no link port, so the sound is your
+  confirmation it is running.
 
 Build with `make -C gbc` (needs the GBDK toolchain downloaded there). Note:
 like the 3DS app, this is built and cross-compiled but **not yet verified on
