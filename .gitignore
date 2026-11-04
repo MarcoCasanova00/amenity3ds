@@ -1,0 +1,19 @@
+# build artifacts
+build/
+
+# third-party audio (royalty-free but not to be redistributed)
+assets/breaks/
+assets/musicradar/
+*.wav
+
+# generated sample bank (derived from the audio above)
+source/break_bank.h
+
+# GBDK toolchain download
+gbc/gbdk/
+gbc/*.tar.gz
+
+# misc
+*.o
+*.elf
+*.map
