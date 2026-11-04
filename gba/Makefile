@@ -10,7 +10,7 @@ ARCH := -marm -mcpu=arm7tdmi -O2 -Wall -fno-builtin -std=gnu11
 BREAKS := ../assets/breaks/CLN086.wav ../assets/breaks/CLN105.wav \
           ../assets/breaks/PRC095.wav ../assets/breaks/PRC098.wav
 
-OBJS := build/crt0.o build/main.o build/samples.o
+OBJS := build/crt0.o build/main.o build/gfx.o build/samples.o
 
 all: amdnb.gba
 
@@ -24,7 +24,10 @@ build:
 build/crt0.o: src/crt0.s | build
 	$(CC) $(ARCH) -x assembler-with-cpp -c $< -o $@
 
-build/main.o: src/main.c build/samples.h | build
+build/main.o: src/main.c build/samples.h src/gfx.h | build
+	$(CC) $(ARCH) -Isrc -Ibuild -c $< -o $@
+
+build/gfx.o: src/gfx.c | build
 	$(CC) $(ARCH) -Isrc -Ibuild -c $< -o $@
 
 build/samples.o: build/samples.c | build
