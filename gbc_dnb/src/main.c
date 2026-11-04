@@ -93,9 +93,9 @@ static void jack_pulse(UINT8 accent) {
 
 static void set_bpm_tma(void) {
 	// Map BPM 61..250 -> TMA 240..144 (lower counter = faster/higher).
-	UINT8 tma = 240 - (UINT8)(((bpm - 61) * 51u) / 100u);
-	if (tma > 240) tma = 240;
-	if (tma < 144) tma = 144;
+	UINT8 tma = 246 - (UINT8)(((bpm - 61) * 25u) / 100u);
+	if (tma > 246) tma = 246;
+	if (tma < 199) tma = 199;
 	__critical { rTMA = tma; }
 }
 
@@ -104,8 +104,8 @@ void main(void) {
 	NR52_REG = 0x80;
 	NR50_REG = 0x77;
 	NR51_REG = 0xFF;
-	rTMA = 192;
-	rTAC = 0x07;
+	rTMA = 240;
+	rTAC = 0x04;
 	set_interrupts(VBL_IFLAG | TIM_IFLAG);
 	add_TIM(tim_isr);
 	enable_interrupts();

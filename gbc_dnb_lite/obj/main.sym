@@ -68,7 +68,7 @@ Symbol Table
     _gotoxy                                                        ****** GX
   0 _jack_pulse                                                    000213 R
     _joypad                                                        ****** GX
-  0 _main                                                          000274 GR
+  0 _main                                                          000272 GR
   2 _out_state                                                     000006 R
     _play_break0                                                   ****** GX
     _play_length                                                   ****** GX
@@ -89,7 +89,7 @@ Hexadecimal [24-Bits]
 
 Area Table
 
-   0 _CODE                                      size    50C   flags    0
+   0 _CODE                                      size    50A   flags    0
    1 _DATA                                      size      4   flags    0
    2 _INITIALIZED                               size     11   flags    0
    3 _DABS                                      size      0   flags    8

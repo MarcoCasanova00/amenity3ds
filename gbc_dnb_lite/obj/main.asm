@@ -502,7 +502,7 @@ _jack_pulse:
 ; Function set_bpm_tma
 ; ---------------------------------
 _set_bpm_tma:
-;src/main.c:91: UINT8 tma = 240 - (UINT8)(((bpm - 61) * 51u) / 100u);
+;src/main.c:91: UINT8 tma = 246 - (UINT8)(((bpm - 61) * 25u) / 100u);
 	ld	hl, #_bpm
 	ld	a, (hl+)
 	add	a, #0xc3
@@ -518,26 +518,24 @@ _set_bpm_tma:
 	add	hl, hl
 	add	hl, hl
 	add	hl, bc
-	add	hl, hl
-	add	hl, bc
 	ld	bc, #0x0064
 	ld	e, l
 	ld	d, h
 	call	__divuint
-	ld	a, #0xf0
+	ld	a, #0xf6
 	sub	a, c
 	ld	c, a
-;src/main.c:92: if (tma > 240) tma = 240;
-	ld	a, #0xf0
+;src/main.c:92: if (tma > 246) tma = 246;
+	ld	a, #0xf6
 	sub	a, c
 	jr	NC, 00102$
-	ld	c, #0xf0
+	ld	c, #0xf6
 00102$:
-;src/main.c:93: if (tma < 144) tma = 144;
+;src/main.c:93: if (tma < 199) tma = 199;
 	ld	a, c
-	sub	a, #0x90
+	sub	a, #0xc7
 	jr	NC, 00104$
-	ld	c, #0x90
+	ld	c, #0xc7
 00104$:
 ;src/main.c:94: __critical { rTMA = tma; }
 	di
@@ -563,11 +561,11 @@ _main::
 ;src/main.c:101: NR51_REG = 0xFF;
 	ld	a, #0xff
 	ldh	(_NR51_REG + 0), a
-;src/main.c:102: rTMA = 192;
-	ld	a, #0xc0
+;src/main.c:102: rTMA = 240;
+	ld	a, #0xf0
 	ldh	(_TMA_REG + 0), a
-;src/main.c:103: rTAC = 0x07;
-	ld	a, #0x07
+;src/main.c:103: rTAC = 0x04;
+	ld	a, #0x04
 	ldh	(_TAC_REG + 0), a
 ;src/main.c:104: set_interrupts(VBL_IFLAG | TIM_IFLAG);
 	ld	a, #0x05

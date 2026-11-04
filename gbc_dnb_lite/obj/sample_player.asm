@@ -76,7 +76,7 @@ _play_isr::
 	ldh	(_NR30_REG),a
 	ld	a, #0xFE ; length of wave
 	ldh	(_NR31_REG),a
-	ld	a, #0x20 ; volume
+	ld	a, #0x10 ; volume (100%)
 	ldh	(_NR32_REG),a
 	xor	a ; low freq bits are zero
 	ldh	(_NR33_REG),a
