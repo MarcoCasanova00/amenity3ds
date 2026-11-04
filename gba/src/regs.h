@@ -29,6 +29,14 @@
 
 #define REG_VRAM ((volatile uint16_t*)0x06000000)
 
+#define VRAM_PAGE0 ((volatile uint8_t*)0x06000000)
+#define VRAM_PAGE1 ((volatile uint8_t*)0x0600A000)
+#define BG_PALETTE ((volatile uint16_t*)0x05000000)
+#define REG_IME     (*(volatile uint16_t*)0x04000208)
+#define REG_IE      (*(volatile uint16_t*)0x04000200)
+#define REG_IF      (*(volatile uint16_t*)0x04000210)
+#define IE_TIMER0   0x0001
+
 // keys (bit set = not pressed)
 #define KEY_A      0x0001
 #define KEY_B      0x0002

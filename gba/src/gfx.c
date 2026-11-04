@@ -1,5 +1,6 @@
-// gfx.c — minimal RGB555 drawing for GBA mode 3.
+// gfx.c — minimal 8-bit indexed drawing for GBA Mode 4.
 #include "gfx.h"
+#include "regs.h"
 
 static const unsigned char FONT[41][7] = {
 	/* 0-9 */
@@ -60,41 +61,45 @@ static int glyph_index(char c) {
 	}
 }
 
-void gfx_clear(uint16_t color) {
-	for (int i = 0; i < SCREEN_W * SCREEN_H; i++) VRAM[i] = color;
+void gfx_set_palette(int idx, int r, int g, int b) {
+	BG_PALETTE[idx] = (uint16_t)((r & 0x1F) | ((g & 0x1F) << 5) | ((b & 0x1F) << 10));
 }
 
-void gfx_fill(int x, int y, int w, int h, uint16_t color) {
+void gfx_clear(volatile uint8_t* page, uint8_t color) {
+	for (int i = 0; i < SCREEN_W * SCREEN_H; i++) page[i] = color;
+}
+
+void gfx_fill(volatile uint8_t* page, int x, int y, int w, int h, uint8_t color) {
 	for (int yy = y; yy < y + h; yy++) {
 		if (yy < 0 || yy >= SCREEN_H) continue;
 		for (int xx = x; xx < x + w; xx++) {
-			if (xx >= 0 && xx < SCREEN_W) VRAM[yy * SCREEN_W + xx] = color;
+			if (xx >= 0 && xx < SCREEN_W) page[yy * SCREEN_W + xx] = color;
 		}
 	}
 }
 
-void gfx_rect(int x, int y, int w, int h, uint16_t color) {
-	gfx_fill(x, y, w, 1, color);
-	gfx_fill(x, y + h - 1, w, 1, color);
-	gfx_fill(x, y, 1, h, color);
-	gfx_fill(x + w - 1, y, 1, h, color);
+void gfx_rect(volatile uint8_t* page, int x, int y, int w, int h, uint8_t color) {
+	gfx_fill(page, x, y, w, 1, color);
+	gfx_fill(page, x, y + h - 1, w, 1, color);
+	gfx_fill(page, x, y, 1, h, color);
+	gfx_fill(page, x + w - 1, y, 1, h, color);
 }
 
-void gfx_char(int x, int y, char c, uint16_t fg, uint16_t bg) {
+void gfx_char(volatile uint8_t* page, int x, int y, char c, uint8_t fg, uint8_t bg) {
 	const unsigned char* g = FONT[glyph_index(c)];
 	for (int row = 0; row < 7; row++) {
 		unsigned char bits = g[row];
 		for (int col = 0; col < 5; col++) {
 			int px = x + col, py = y + row;
 			if (px < 0 || px >= SCREEN_W || py < 0 || py >= SCREEN_H) continue;
-			VRAM[py * SCREEN_W + px] = (bits & (1 << (4 - col))) ? fg : bg;
+			page[py * SCREEN_W + px] = (bits & (1 << (4 - col))) ? fg : bg;
 		}
 	}
 }
 
-void gfx_str(int x, int y, const char* s, uint16_t fg, uint16_t bg) {
+void gfx_str(volatile uint8_t* page, int x, int y, const char* s, uint8_t fg, uint8_t bg) {
 	while (*s) {
-		gfx_char(x, y, *s, fg, bg);
+		gfx_char(page, x, y, *s, fg, bg);
 		x += 6;
 		s++;
 	}
@@ -106,10 +111,10 @@ int gfx_strw(const char* s) {
 	return w;
 }
 
-void gfx_num(int x, int y, int v, uint16_t fg, uint16_t bg) {
+void gfx_num(volatile uint8_t* page, int x, int y, int v, uint8_t fg, uint8_t bg) {
 	char b[8];
 	int n = 0;
-	if (v == 0) { gfx_char(x, y, '0', fg, bg); return; }
+	if (v == 0) { gfx_char(page, x, y, '0', fg, bg); return; }
 	while (v && n < 7) { b[n++] = '0' + v % 10; v /= 10; }
-	while (n) { gfx_char(x, y, b[--n], fg, bg); x += 6; }
+	while (n) { gfx_char(page, x, y, b[--n], fg, bg); x += 6; }
 }
