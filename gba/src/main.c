@@ -1,5 +1,5 @@
 // GBA DnB break player — 16-bit Direct Sound via Timer-IRQ FIFO,
-// Mode 4 double-buffered UI (no flicker).
+// Mode 3 UI redrawn only when the state changes (no flicker).
 #include <stdint.h>
 
 #include "regs.h"
@@ -49,9 +49,9 @@ void irq_handler(void) __attribute__((naked));
 void irq_handler(void) {
 	__asm volatile(
 		"push {r0-r3,lr}\n\t"
-		"ldr r0, =0x04000210\n\t"   // REG_IF
+		"ldr r0, =0x04000210\n\t"
 		"ldr r1, [r0]\n\t"
-		"tst r1, #1\n\t"            // Timer0
+		"tst r1, #1\n\t"
 		"beq 1f\n\t"
 		"bl audio_tick\n\t"
 		"mov r1, #1\n\t"
@@ -78,75 +78,58 @@ static void set_timer(void) {
 	uint32_t period = (uint32_t)(16777216u / SR_WORDS) * 175u / (uint32_t)bpm;
 	if (period < 2) period = 2;
 	REG_TM0CNT_L = (uint16_t)(period - 1);
-	REG_TM0CNT_H = 0x00C0;         // start + IRQ
+	REG_TM0CNT_H = 0x00C0;
 }
 
-// ---- UI -------------------------------------------------------------------
-enum { P_BG = 0, P_PAN, P_DIM, P_TXT, P_AMB, P_GRN, P_RED };
-
-static volatile uint8_t* front = VRAM_PAGE0;
-static volatile uint8_t* back = VRAM_PAGE1;
-static int front_sel = 0;
+// ---- UI (Mode 3) ----------------------------------------------------------
+static const uint16_t COL_BG  = RGB5(12, 10, 9);
+static const uint16_t COL_PAN = RGB5(58, 54, 50);
+static const uint16_t COL_DIM = RGB5(17, 17, 16);
+static const uint16_t COL_TXT = RGB5(29, 29, 28);
+static const uint16_t COL_AMB = RGB5(31, 21, 5);
+static const uint16_t COL_GRN = RGB5(10, 27, 15);
+static const uint16_t COL_RED = RGB5(29, 10, 7);
 
 static void draw_ui(void) {
-	gfx_clear(back, P_BG);
+	gfx_clear(COL_BG);
 
-	gfx_str(back, 4, 3, "AMENITY-DNB", P_AMB, P_BG);
-	gfx_str(back, 176, 3, "16bit", P_DIM, P_BG);
+	gfx_str(4, 3, "AMENITY-DNB", COL_AMB, COL_BG);
+	gfx_str(176, 3, "16bit", COL_DIM, COL_BG);
 
-	gfx_str(back, 4, 15, "BPM", P_DIM, P_BG);
-	gfx_num(back, 44, 15, bpm, P_TXT, P_BG);
-	gfx_str(back, 120, 15, running ? "PLAY" : "STOP",
-			running ? P_GRN : P_RED, P_BG);
+	gfx_str(4, 15, "BPM", COL_DIM, COL_BG);
+	gfx_num(44, 15, bpm, COL_TXT, COL_BG);
+	gfx_str(120, 15, running ? "PLAY" : "STOP",
+			running ? COL_GRN : COL_RED, COL_BG);
 
 	const char* top[4] = { "BRK1", "BRK2", "BRK3", "BRK4" };
 	const char* bot[4] = { "PLAY", "STOP", "BPM-", "BPM+" };
 	int x0 = 4, y0 = 34, cw = 57, ch = 42, gap = 3;
 	for (int i = 0; i < 4; i++) {
 		int x = x0 + i * (cw + gap);
-		uint8_t c = (i == cur) ? P_AMB : P_PAN;
-		gfx_fill(back, x, y0, cw, ch, c);
-		gfx_rect(back, x, y0, cw, ch, i == cur ? P_TXT : P_DIM);
+		uint16_t c = (i == cur) ? COL_AMB : COL_PAN;
+		gfx_fill(x, y0, cw, ch, c);
+		gfx_rect(x, y0, cw, ch, i == cur ? COL_TXT : COL_DIM);
 		int tw = gfx_strw(top[i]);
-		gfx_str(back, x + (cw - tw) / 2, y0 + 6, top[i], i == cur ? P_BG : P_TXT, c);
+		gfx_str(x + (cw - tw) / 2, y0 + 6, top[i], i == cur ? 0x0000 : COL_TXT, c);
 		tw = gfx_strw(BREAK_NAMES[i]);
-		gfx_str(back, x + (cw - tw) / 2, y0 + 18, BREAK_NAMES[i], P_DIM, c);
+		gfx_str(x + (cw - tw) / 2, y0 + 18, BREAK_NAMES[i], COL_DIM, c);
 
 		int y = y0 + ch + gap;
-		uint8_t cc = P_PAN;
-		if (i == 0) cc = running ? P_GRN : P_PAN;
-		if (i == 1) cc = running ? P_PAN : P_RED;
-		gfx_fill(back, x, y, cw, ch, cc);
-		gfx_rect(back, x, y, cw, ch, P_DIM);
+		uint16_t cc = COL_PAN;
+		if (i == 0) cc = running ? COL_GRN : COL_PAN;
+		if (i == 1) cc = running ? COL_PAN : COL_RED;
+		gfx_fill(x, y, cw, ch, cc);
+		gfx_rect(x, y, cw, ch, COL_DIM);
 		tw = gfx_strw(bot[i]);
-		gfx_str(back, x + (cw - tw) / 2, y + (ch - 7) / 2, bot[i],
-				((i == 0 && running) || (i == 1 && !running)) ? P_BG : P_TXT, cc);
+		gfx_str(x + (cw - tw) / 2, y + (ch - 7) / 2, bot[i],
+				((i == 0 && running) || (i == 1 && !running)) ? 0x0000 : COL_TXT, cc);
 	}
 
-	gfx_str(back, 4, 142, "L/R brk   U/D bpm   A play", P_DIM, P_BG);
+	gfx_str(4, 142, "L/R brk   U/D bpm   A play", COL_DIM, COL_BG);
 }
 
-static void flip(void) {
-	while (REG_VCOUNT >= 160) ;
-	while (REG_VCOUNT < 160) ;
-	if (front_sel) REG_DISPCNT |= 0x0010; else REG_DISPCNT &= ~0x0010;
-	volatile uint8_t* t = front; front = back; back = t;
-	front_sel ^= 1;
-}
-
-// ---- main -----------------------------------------------------------------
 void main(void) {
-	REG_DISPCNT = 0x0404;         // Mode 4 + BG2, page 0
-	gfx_clear(VRAM_PAGE0, P_BG);
-	gfx_clear(VRAM_PAGE1, P_BG);
-	gfx_set_palette(P_BG, 12, 10, 9);
-	gfx_set_palette(P_PAN, 58, 54, 50);
-	gfx_set_palette(P_DIM, 17, 17, 16);
-	gfx_set_palette(P_TXT, 29, 29, 28);
-	gfx_set_palette(P_AMB, 31, 21, 5);
-	gfx_set_palette(P_GRN, 10, 27, 15);
-	gfx_set_palette(P_RED, 29, 10, 7);
-
+	REG_DISPCNT = 0x0403;         // Mode 3 + BG2
 	REG_SOUNDCNT_X = 0x0080;
 	REG_SOUNDCNT_H = 0x0F0F;
 
@@ -159,23 +142,30 @@ void main(void) {
 	set_timer();
 
 	int prevKeys = 0x03FF;
+	int need_draw = 1;
+
 	for (;;) {
 		int keys = REG_KEYINPUT ^ 0x03FF;
 		int down = keys & ~prevKeys;
 		prevKeys = keys;
 
-		if (down & KEY_RIGHT) { audio_stop(); cur = (cur + 1) % NBREAKS; if (running) audio_start_break(); }
-		if (down & KEY_LEFT)  { audio_stop(); cur = (cur + NBREAKS - 1) % NBREAKS; if (running) audio_start_break(); }
-		if (down & KEY_UP)    { if (bpm < 250) { bpm++; set_timer(); } }
-		if (down & KEY_DOWN)  { if (bpm > 61) { bpm--; set_timer(); } }
+		if (down & KEY_RIGHT) { audio_stop(); cur = (cur + 1) % NBREAKS; if (running) audio_start_break(); need_draw = 1; }
+		if (down & KEY_LEFT)  { audio_stop(); cur = (cur + NBREAKS - 1) % NBREAKS; if (running) audio_start_break(); need_draw = 1; }
+		if (down & KEY_UP)    { if (bpm < 250) { bpm++; set_timer(); need_draw = 1; } }
+		if (down & KEY_DOWN)  { if (bpm > 61) { bpm--; set_timer(); need_draw = 1; } }
 		if (down & (KEY_A | KEY_START)) {
 			if (running) { running = 0; audio_stop(); }
 			else { running = 1; audio_start_break(); set_timer(); }
+			need_draw = 1;
 		}
-		if (down & KEY_B) { audio_stop(); cur = 0; if (running) audio_start_break(); }
-		if (down & KEY_SELECT) { audio_stop(); cur = (cur + 2) % NBREAKS; if (running) audio_start_break(); }
+		if (down & KEY_B) { audio_stop(); cur = 0; if (running) audio_start_break(); need_draw = 1; }
+		if (down & KEY_SELECT) { audio_stop(); cur = (cur + 2) % NBREAKS; if (running) audio_start_break(); need_draw = 1; }
 
-		draw_ui();
-		flip();
+		if (need_draw) {
+			while (REG_VCOUNT >= 160) ;
+			while (REG_VCOUNT < 160) ;
+			draw_ui();
+			need_draw = 0;
+		}
 	}
 }
