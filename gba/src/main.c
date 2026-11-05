@@ -1,4 +1,12 @@
-// GBA DnB break player — 16-bit Direct Sound (fixed regs!) + PSG kit fallback.
+// GBA DnB break player — 8-bit Direct Sound FIFO + PSG kit fallback.
+//
+// Audio path (this is the part that used to be silent):
+//   * Direct Sound FIFOs are 8-bit, one byte per Timer-0 overflow.
+//   * Timer 0 therefore runs at the sample rate (22.05 kHz at 175 BPM).
+//   * Timer 1 runs at exactly one quarter of that rate and its IRQ pushes
+//     four 8-bit samples (one 32-bit FIFO word) per tick.
+//   * GBA IME is bit 0 (not 0x8000), and timer reloads are 65536-period.
+//
 // UI: Mode 3, redrawn only on change (no flicker).
 #include <stdint.h>
 
@@ -7,18 +15,18 @@
 #include "samples.h"
 
 #define NBREAKS 4
-#define SR_WORDS 11025          // words/sec (each word = 2 samples -> 22.05 kHz)
+#define BASE_BPM 175
+#define BASE_RATE 22050
 
-#define SDS_H 0x0306            // DMG 100% + DS A 100% + A left/right
-
-static int cur = 0, bpm = 175, running = 0;
+static int cur = 0, bpm = BASE_BPM, running = 0;
 static int snd_mode = 0;        // 0 = Direct Sound break, 1 = PSG kit
 static unsigned psg_step_idx = 0;
+static unsigned psg_frame = 0;
 
 static const char* const BREAK_NAMES[NBREAKS] = {
 	"CLN086", "CLN105", "PRC095", "PRC098"
 };
-static const int16_t* BRK[NBREAKS] = { brk0, brk1, brk2, brk3 };
+static const int8_t* const BRK[NBREAKS] = { brk0, brk1, brk2, brk3 };
 
 static int brk_len_for(int i) {
 	switch (i) {
@@ -29,83 +37,111 @@ static int brk_len_for(int i) {
 	}
 }
 
-// ---- Direct Sound state (read by IRQ) -------------------------------------
-static const int16_t* a_src = 0;
-static int a_len = 0;
-static volatile int a_pos = 0;
-static volatile int a_active = 0;
+// ---- Direct Sound state (read by the Timer-1 IRQ) -------------------------
+static const int8_t* volatile a_src;
+static volatile int a_len;
+static volatile int a_pos;
+static volatile int a_active;
+
+
 
 void audio_tick(void) {
-	if (!a_active) return;
-	const int16_t* s = a_src;
-	int p = a_pos;
-	int16_t x = s[p];
-	int16_t y = (p + 1 < a_len) ? s[p + 1] : 0;
-	uint32_t w = ((uint32_t)(uint16_t)x) | ((uint32_t)(uint16_t)y << 16);
+	uint32_t w = 0;
+	if (a_active) {
+		const int8_t* s = (const int8_t*)a_src;
+		int p = a_pos;
+		if (p + 4 > a_len) p = 0;
+		w = (uint32_t)(uint8_t)s[p]
+		  | ((uint32_t)(uint8_t)s[p + 1] << 8)
+		  | ((uint32_t)(uint8_t)s[p + 2] << 16)
+		  | ((uint32_t)(uint8_t)s[p + 3] << 24);
+		p += 4;
+		if (p >= a_len) p = 0;
+		a_pos = p;
+	}
 	REG_FIFO_A = w;
-	REG_FIFO_B = w;
-	p += 2;
-	if (p >= a_len) p = 0;
-	a_pos = p;
 }
 
 void irq_handler(void) __attribute__((naked));
 void irq_handler(void) {
 	__asm volatile(
-		"push {r0-r3,lr}\n\t"
-		"ldr r0, =0x04000210\n\t"
+		"push {r0-r3,r12,lr}\n\t"
+		"ldr r0, =0x04000202\n\t"      // REG_IF
 		"ldr r1, [r0]\n\t"
-		"tst r1, #1\n\t"
+		"tst r1, #0x10\n\t"            // Timer 1?
 		"beq 1f\n\t"
+		"mov r1, #0x10\n\t"
+		"str r1, [r0]\n\t"             // write-1-to-clear
 		"bl audio_tick\n\t"
-		"mov r1, #1\n\t"
-		"str r1, [r0]\n\t"
 		"1:\n\t"
-		"pop {r0-r3,lr}\n\t"
-		"movs pc, lr\n\t"
+		"pop {r0-r3,r12,lr}\n\t"
+		"bx lr\n\t"
 	);
+}
+
+static void fifo_prefill(void) {
+	for (int i = 0; i < 4; i++) audio_tick();
+}
+
+static void fifo_silence(void) {
+	for (int i = 0; i < 4; i++) REG_FIFO_A = 0;
 }
 
 static void audio_start_break(void) {
 	a_src = BRK[cur];
-	a_len = brk_len_for(cur);
-	if (a_len > 22050 * 5) a_len = 22050 * 5;
+	a_len = brk_len_for(cur) & ~3;
 	a_pos = 0;
-	a_active = (snd_mode == 0) ? 1 : 0;
+	a_active = (snd_mode == 0);
+	if (a_active) fifo_prefill();
+	else fifo_silence();
 }
 
 static void audio_stop(void) {
 	a_active = 0;
 }
 
-static void set_timer(void) {
-	uint32_t period = (uint32_t)(16777216u / SR_WORDS) * 175u / (uint32_t)bpm;
-	if (period < 2) period = 2;
-	REG_TM0CNT_L = (uint16_t)(period - 1);
-	REG_TM0CNT_H = 0x00C0;
+static void timers_stop(void) {
+	REG_TM0CNT_H = 0x0000;
+	REG_TM1CNT_H = 0x0000;
+}
+
+// Timer 0 = sample clock, Timer 1 = 1/4 sample clock (4 samples per IRQ).
+static void timers_start(void) {
+	uint32_t rate = ((uint32_t)BASE_RATE * (uint32_t)bpm) / BASE_BPM;
+	uint32_t p0 = 16777216u / rate;
+	uint32_t p1;
+	if (p0 < 4) p0 = 4;
+	p1 = p0 * 4;
+	if (p1 > 65535) p1 = 65535;
+
+	timers_stop();
+	REG_TM0CNT_L = (uint16_t)(65536u - p0);
+	REG_TM1CNT_L = (uint16_t)(65536u - p1);
+	REG_TM0CNT_H = 0x0080;         // enable, 1-cycle prescale, no IRQ
+	REG_TM1CNT_H = 0x00C0;         // enable, 1-cycle prescale, Timer-1 IRQ
 }
 
 // ---- PSG kit fallback (channels 1 & 4) ------------------------------------
 static void psg_kick(void) {
-	REG_NR10 = 0x0060;
-	REG_NR11 = 0x0080;
-	REG_NR12 = 0x00F2;
-	REG_NR13 = 0x0010;
-	REG_NR14 = 0x00C0;
+	REG_NR10 = 0x00;               // no sweep
+	REG_NR11 = 0x80;               // 50% duty
+	REG_NR12 = 0xF2;               // volume 15, decay
+	REG_NR13 = 0x10;
+	REG_NR14 = 0x80;               // trigger
 }
 
 static void psg_snare(void) {
-	REG_NR41 = 0x003F;
-	REG_NR42 = 0x00E2;
-	REG_NR43 = 0x001B;
-	REG_NR44 = 0x00C0;
+	REG_NR41 = 0x00;
+	REG_NR42 = 0xE2;
+	REG_NR43 = 0x1B;
+	REG_NR44 = 0x80;
 }
 
 static void psg_hat(int open) {
-	REG_NR41 = 0x001F;
-	REG_NR42 = open ? 0x00D3 : 0x00E0;
-	REG_NR43 = 0x005C;
-	REG_NR44 = 0x0080;
+	REG_NR41 = 0x00;
+	REG_NR42 = open ? 0xD3 : 0xE0;
+	REG_NR43 = 0x5C;
+	REG_NR44 = 0x80;
 }
 
 static void psg_step(unsigned step) {
@@ -171,72 +207,84 @@ static void draw_ui(void) {
 
 void main(void) {
 	REG_DISPCNT = 0x0403;
-	REG_SOUNDCNT_X = 0x0080;
-	REG_SOUNDCNT_H = SDS_H;
+	REG_SOUNDBIAS = 0x0200;
 
-	*(void**)0x03007FFC = (void*)irq_handler;
-	REG_IE = IE_TIMER0;
-	REG_IME = 0x8000;
+	// Master enable first, then PSG / Direct Sound routing.
+	REG_SOUNDCNT_X = 0x0080;
+	REG_SOUNDCNT_L = 0xFF77;       // PSG ch1-4 both sides, max volume
+	REG_SOUNDCNT_H = 0x0306;       // PSG 100%, DS A 100% to L+R, Timer 0
+
+	REG_IF = 0xFFFF;
+	*(volatile void**)0x03007FFC = (void*)irq_handler;
+	REG_IE = IE_TIMER1;
+	REG_IME = 0x0001;
 
 	audio_start_break();
 	running = 1;
-	set_timer();
+	timers_start();
 
-	int prevKeys = 0x03FF;
+	int prev_keys = 0;
 	int need_draw = 1;
-	unsigned psg_frame = 0;
-	unsigned frame_count = 0;
-	int beep_on = 1;             // siren until a key is pressed
 
 	for (;;) {
+		// Run the UI/sequencer at 60 Hz.
+		while (REG_VCOUNT >= 160) ;
+		while (REG_VCOUNT < 160) ;
+
 		int keys = REG_KEYINPUT ^ 0x03FF;
-		int down = keys & ~prevKeys;
-		prevKeys = keys;
+		int down = keys & ~prev_keys;
+		prev_keys = keys;
 
-		// siren test: alternating two-tone, retriggered every 32 frames
-		if (beep_on) {
-			if ((frame_count & 31) == 0) {
-				REG_NR21 = 0x0080;
-				REG_NR22 = 0x00F0;
-				REG_NR23 = (frame_count & 64) ? 0x004A : 0x003A;
-				REG_NR24 = 0x0080;
-			}
-			if (keys) beep_on = 0;
-		}
-		frame_count++;
-
-		if (down & KEY_RIGHT) { audio_stop(); cur = (cur + 1) % NBREAKS; if (running) audio_start_break(); need_draw = 1; }
-		if (down & KEY_LEFT)  { audio_stop(); cur = (cur + NBREAKS - 1) % NBREAKS; if (running) audio_start_break(); need_draw = 1; }
-		if (down & KEY_UP)    { if (bpm < 250) { bpm++; set_timer(); need_draw = 1; } }
-		if (down & KEY_DOWN)  { if (bpm > 61) { bpm--; set_timer(); need_draw = 1; } }
-		if (down & (KEY_A | KEY_START)) {
-			if (running) { running = 0; audio_stop(); }
-			else { running = 1; audio_start_break(); set_timer(); }
+		if (down & KEY_RIGHT) {
+			audio_stop();
+			cur = (cur + 1) % NBREAKS;
+			audio_start_break();
 			need_draw = 1;
 		}
-		if (down & KEY_B) { audio_stop(); cur = 0; if (running) audio_start_break(); need_draw = 1; }
+		if (down & KEY_LEFT) {
+			audio_stop();
+			cur = (cur + NBREAKS - 1) % NBREAKS;
+			audio_start_break();
+			need_draw = 1;
+		}
+		if (down & KEY_UP) {
+			if (bpm < 250) { bpm++; timers_start(); need_draw = 1; }
+		}
+		if (down & KEY_DOWN) {
+			if (bpm > 61) { bpm--; timers_start(); need_draw = 1; }
+		}
+		if (down & (KEY_A | KEY_START)) {
+			running = !running;
+			if (running) audio_start_break();
+			else audio_stop();
+			need_draw = 1;
+		}
+		if (down & KEY_B) {
+			audio_stop();
+			cur = 0;
+			audio_start_break();
+			need_draw = 1;
+		}
 		if (down & KEY_SELECT) {
 			snd_mode ^= 1;
-			audio_stop();
-			if (running) audio_start_break();
+			psg_step_idx = 0;
+			psg_frame = 0;
+			audio_start_break();
 			need_draw = 1;
 		}
 
-		// PSG kit sequencing (only in PSG mode)
+		// PSG kit sequencing (only in PSG mode).
 		if (running && snd_mode == 1) {
-			unsigned eighth = 1800u / (unsigned)bpm;   // frames per 8th @60fps
+			unsigned eighth = 1800u / (unsigned)bpm;
 			if (eighth < 1) eighth = 1;
-			if (psg_frame >= eighth) {
+			if (++psg_frame >= eighth) {
 				psg_frame = 0;
 				psg_step(psg_step_idx);
 				psg_step_idx = (psg_step_idx + 1) & 15;
 			}
-			psg_frame++;
 		}
 
 		if (need_draw) {
-			while (REG_VCOUNT >= 160) ;
-			while (REG_VCOUNT < 160) ;
 			draw_ui();
 			need_draw = 0;
 		}

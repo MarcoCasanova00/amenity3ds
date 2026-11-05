@@ -68,9 +68,10 @@ Symbol Table
     _gotoxy                                                        ****** GX
   0 _jack_pulse                                                    000213 R
     _joypad                                                        ****** GX
-  0 _main                                                          000272 GR
+  0 _main                                                          00023F GR
   2 _out_state                                                     000006 R
     _play_break0                                                   ****** GX
+    _play_isr                                                      ****** GX
     _play_length                                                   ****** GX
   0 _print_u16                                                     000082 R
   2 _pulse_count                                                   00000F R
@@ -78,7 +79,6 @@ Symbol Table
     _putchar                                                       ****** GX
   2 _running                                                       000003 R
   0 _send_edge                                                     0001F6 R
-  0 _set_bpm_tma                                                   00023F R
     _set_interrupts                                                ****** GX
   0 _start_break                                                   00004A R
   0 _tim_isr                                                       000000 GR
@@ -89,7 +89,7 @@ Hexadecimal [24-Bits]
 
 Area Table
 
-   0 _CODE                                      size    50A   flags    0
+   0 _CODE                                      size    4E0   flags    0
    1 _DATA                                      size      4   flags    0
    2 _INITIALIZED                               size     11   flags    0
    3 _DABS                                      size      0   flags    8

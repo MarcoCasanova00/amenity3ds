@@ -38,6 +38,7 @@ build/amdnb.elf: $(OBJS) app.ld
 
 amdnb.gba: build/amdnb.elf
 	$(OBJCOPY) -O binary $< $@
+	python3 ../tools/fix_gba_header.py $@ AMENITYDNB
 	@ls -la $@
 
 clean:

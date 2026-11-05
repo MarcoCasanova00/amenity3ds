@@ -7,7 +7,7 @@
 	.org 0x000
 	// 0x000: branch over header to _start
 	.word 0xEA000000 | (((_start - . - 8) >> 2) & 0x00FFFFFF)
-	// 0x004..0x09F: logo + reserved (zeroed; emulators do not validate)
+	// 0x004..0x09F: logo (written by tools/fix_gba_header.py after linking)
 	.fill 0x9C, 1, 0
 	// 0x0A0: title (12 bytes)
 	.ascii "AMENITYDNB00"
@@ -34,14 +34,14 @@ _start:
 	// stack
 	ldr	sp, =_stack_top
 
-	// copy .data from ROM to EWRAM
+	// copy .data from ROM to EWRAM (word at a time; LMA is 4-byte aligned)
 	ldr	r0, =__data_lma
 	ldr	r1, =__data_vma
 	ldr	r2, =__data_end
 	cmp	r1, r2
 	beq	2f
-1:	ldmia	r0!, {r3-r10}
-	stmia	r1!, {r3-r10}
+1:	ldr	r3, [r0], #4
+	str	r3, [r1], #4
 	cmp	r1, r2
 	blo	1b
 2:
@@ -57,5 +57,8 @@ _start:
 	blo	3b
 4:
 
+	// The GBA boots with the ARM IRQ disable bit (CPSR.I) set, so REG_IME
+	// alone is not enough. Switch to System mode and clear I/F.
+	msr	cpsr_c, #0x1F
 	bl	main
 	b	.

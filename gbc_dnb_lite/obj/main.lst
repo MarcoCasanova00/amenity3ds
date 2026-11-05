@@ -11,1062 +11,1033 @@
                                      11 	.globl _main
                                      12 	.globl _tim_isr
                                      13 	.globl _play_break0
-                                     14 	.globl _putchar
-                                     15 	.globl _gotoxy
-                                     16 	.globl _set_interrupts
-                                     17 	.globl _joypad
-                                     18 	.globl _add_TIM
-                                     19 	.globl _g_tick
-                                     20 ;--------------------------------------------------------
-                                     21 ; special function registers
-                                     22 ;--------------------------------------------------------
+                                     14 	.globl _play_isr
+                                     15 	.globl _putchar
+                                     16 	.globl _gotoxy
+                                     17 	.globl _set_interrupts
+                                     18 	.globl _joypad
+                                     19 	.globl _add_TIM
+                                     20 	.globl _g_tick
+                                     21 ;--------------------------------------------------------
+                                     22 ; special function registers
                                      23 ;--------------------------------------------------------
-                                     24 ; ram data
-                                     25 ;--------------------------------------------------------
-                                     26 	.area _DATA
-      000000                         27 _g_tick::
-      000000                         28 	.ds 4
-                                     29 ;--------------------------------------------------------
-                                     30 ; ram data
-                                     31 ;--------------------------------------------------------
-                                     32 	.area _INITIALIZED
-      000000                         33 _cur:
-      000000                         34 	.ds 1
-      000001                         35 _bpm:
-      000001                         36 	.ds 2
-      000003                         37 _running:
-      000003                         38 	.ds 1
-      000004                         39 _dest:
-      000004                         40 	.ds 1
-      000005                         41 _clk_mode:
-      000005                         42 	.ds 1
-      000006                         43 _out_state:
-      000006                         44 	.ds 1
-      000007                         45 _ck_last:
-      000007                         46 	.ds 4
-      00000B                         47 _ck_ph:
-      00000B                         48 	.ds 4
-      00000F                         49 _pulse_count:
-      00000F                         50 	.ds 2
-                                     51 ;--------------------------------------------------------
-                                     52 ; absolute external ram data
-                                     53 ;--------------------------------------------------------
-                                     54 	.area _DABS (ABS)
-                                     55 ;--------------------------------------------------------
-                                     56 ; global & static initialisations
-                                     57 ;--------------------------------------------------------
-                                     58 	.area _HOME
-                                     59 	.area _GSINIT
-                                     60 	.area _GSFINAL
-                                     61 	.area _GSINIT
-                                     62 ;--------------------------------------------------------
-                                     63 ; Home
-                                     64 ;--------------------------------------------------------
-                                     65 	.area _HOME
+                                     24 ;--------------------------------------------------------
+                                     25 ; ram data
+                                     26 ;--------------------------------------------------------
+                                     27 	.area _DATA
+      000000                         28 _g_tick::
+      000000                         29 	.ds 4
+                                     30 ;--------------------------------------------------------
+                                     31 ; ram data
+                                     32 ;--------------------------------------------------------
+                                     33 	.area _INITIALIZED
+      000000                         34 _cur:
+      000000                         35 	.ds 1
+      000001                         36 _bpm:
+      000001                         37 	.ds 2
+      000003                         38 _running:
+      000003                         39 	.ds 1
+      000004                         40 _dest:
+      000004                         41 	.ds 1
+      000005                         42 _clk_mode:
+      000005                         43 	.ds 1
+      000006                         44 _out_state:
+      000006                         45 	.ds 1
+      000007                         46 _ck_last:
+      000007                         47 	.ds 4
+      00000B                         48 _ck_ph:
+      00000B                         49 	.ds 4
+      00000F                         50 _pulse_count:
+      00000F                         51 	.ds 2
+                                     52 ;--------------------------------------------------------
+                                     53 ; absolute external ram data
+                                     54 ;--------------------------------------------------------
+                                     55 	.area _DABS (ABS)
+                                     56 ;--------------------------------------------------------
+                                     57 ; global & static initialisations
+                                     58 ;--------------------------------------------------------
+                                     59 	.area _HOME
+                                     60 	.area _GSINIT
+                                     61 	.area _GSFINAL
+                                     62 	.area _GSINIT
+                                     63 ;--------------------------------------------------------
+                                     64 ; Home
+                                     65 ;--------------------------------------------------------
                                      66 	.area _HOME
-                                     67 ;--------------------------------------------------------
-                                     68 ; code
-                                     69 ;--------------------------------------------------------
-                                     70 	.area _CODE
-                                     71 ;src/main.c:21: void tim_isr(void) __interrupt(1) { g_tick++; }
-                                     72 ;	---------------------------------
-                                     73 ; Function tim_isr
-                                     74 ; ---------------------------------
-      000000                         75 _tim_isr::
-      000000 FB               [ 4]   76 	ei
-      000001 F5               [16]   77 	push	af
-      000002 C5               [16]   78 	push bc
-      000003 D5               [16]   79 	push de
-      000004 E5               [16]   80 	push hl
-      000005 E8 FC            [16]   81 	add	sp, #-4
-      000007 21r00r00         [12]   82 	ld	hl, #_g_tick
-      00000A 54               [ 4]   83 	ld	d, h
-      00000B 5D               [ 4]   84 	ld	e, l
-      00000C F8 00            [12]   85 	ldhl	sp,	#0
-      00000E 1A               [ 8]   86 	ld	a, (de)
-      00000F 22               [ 8]   87 	ld	(hl+),	a
-      000010 13               [ 8]   88 	inc	de
-      000011 1A               [ 8]   89 	ld	a, (de)
-      000012 22               [ 8]   90 	ld	(hl+),	a
-      000013 13               [ 8]   91 	inc	de
-      000014 1A               [ 8]   92 	ld	a, (de)
-      000015 22               [ 8]   93 	ld	(hl+),	a
-      000016 13               [ 8]   94 	inc	de
-      000017 1A               [ 8]   95 	ld	a, (de)
-      000018 77               [ 8]   96 	ld	(hl), a
-      000019 D1               [12]   97 	pop	de
-      00001A D5               [16]   98 	push	de
-      00001B 7B               [ 4]   99 	ld	a, e
-      00001C C6 01            [ 8]  100 	add	a, #0x01
-      00001E 5F               [ 4]  101 	ld	e, a
-      00001F 7A               [ 4]  102 	ld	a, d
-      000020 CE 00            [ 8]  103 	adc	a, #0x00
-      000022 F5               [16]  104 	push	af
-      000023 21r01r00         [12]  105 	ld	hl, #_g_tick + 1
-      000026 32               [ 8]  106 	ld	(hl-), a
-      000027 73               [ 8]  107 	ld	(hl), e
-      000028 F8 04            [12]  108 	ldhl	sp,#4
-      00002A 2A               [ 8]  109 	ld	a, (hl+)
-      00002B 5F               [ 4]  110 	ld	e, a
-      00002C 56               [ 8]  111 	ld	d, (hl)
-      00002D F1               [12]  112 	pop	af
-      00002E 7B               [ 4]  113 	ld	a, e
-      00002F CE 00            [ 8]  114 	adc	a, #0x00
-      000031 5F               [ 4]  115 	ld	e, a
-      000032 7A               [ 4]  116 	ld	a, d
-      000033 CE 00            [ 8]  117 	adc	a, #0x00
-      000035 21r03r00         [12]  118 	ld	hl, #_g_tick + 3
-      000038 32               [ 8]  119 	ld	(hl-), a
-      000039 73               [ 8]  120 	ld	(hl), e
-      00003A E8 04            [16]  121 	add	sp, #4
-      00003C E1               [12]  122 	pop	hl
-      00003D D1               [12]  123 	pop de
-      00003E C1               [12]  124 	pop bc
-      00003F F1               [12]  125 	pop af
-      000040 C9               [16]  126 	ret
-      000041                        127 _BREAK_NAMES:
-      000041r43r00                  128 	.dw __str_0
-      000043                        129 __str_0:
-      000043 43 4C 4E 31 30 35      130 	.ascii "CLN105"
-      000049 00                     131 	.db 0x00
-                                    132 ;src/main.c:36: static void start_break(void) {
-                                    133 ;	---------------------------------
-                                    134 ; Function start_break
-                                    135 ; ---------------------------------
-      00004A                        136 _start_break:
-                                    137 ;src/main.c:37: play_break0();
-                                    138 ;src/main.c:38: }
-      00004A C3r00r00         [16]  139 	jp	_play_break0
-      00004D                        140 _PPQN:
-      00004D 18                     141 	.db #0x18	; 24
-      00004E 10                     142 	.db #0x10	; 16
-      00004F 08                     143 	.db #0x08	; 8
-      000050                        144 _MODE_N:
-      000050r56r00                  145 	.dw __str_1
-      000052r5Ar00                  146 	.dw __str_2
-      000054r5Er00                  147 	.dw __str_3
-      000056                        148 __str_1:
-      000056 53 32 34               149 	.ascii "S24"
-      000059 00                     150 	.db 0x00
-      00005A                        151 __str_2:
-      00005A 53 31 36               152 	.ascii "S16"
-      00005D 00                     153 	.db 0x00
-      00005E                        154 __str_3:
-      00005E 53 38                  155 	.ascii "S8"
-      000060 00                     156 	.db 0x00
-                                    157 ;src/main.c:40: static void put_str(UINT8 x, UINT8 y, const char* s) {
-                                    158 ;	---------------------------------
-                                    159 ; Function put_str
-                                    160 ; ---------------------------------
-      000061                        161 _put_str:
-      000061 47               [ 4]  162 	ld	b, a
-                                    163 ;src/main.c:41: gotoxy(x, y);
-      000062 7B               [ 4]  164 	ld	a, e
-      000063 F5               [16]  165 	push	af
-      000064 33               [ 8]  166 	inc	sp
-      000065 C5               [16]  167 	push	bc
-      000066 33               [ 8]  168 	inc	sp
-      000067 CDr00r00         [24]  169 	call	_gotoxy
-      00006A E1               [12]  170 	pop	hl
-                                    171 ;src/main.c:42: while (*s) putchar(*s++);
-      00006B F8 02            [12]  172 	ldhl	sp,	#2
-      00006D 2A               [ 8]  173 	ld	a, (hl+)
-      00006E 4F               [ 4]  174 	ld	c, a
-      00006F 46               [ 8]  175 	ld	b, (hl)
-      000070                        176 00101$:
-      000070 0A               [ 8]  177 	ld	a, (bc)
-      000071 B7               [ 4]  178 	or	a, a
-      000072 28 0B            [12]  179 	jr	Z, 00104$
-      000074 03               [ 8]  180 	inc	bc
-      000075 C5               [16]  181 	push	bc
-      000076 F5               [16]  182 	push	af
-      000077 33               [ 8]  183 	inc	sp
-      000078 CDr00r00         [24]  184 	call	_putchar
-      00007B 33               [ 8]  185 	inc	sp
-      00007C C1               [12]  186 	pop	bc
-      00007D 18 F1            [12]  187 	jr	00101$
-      00007F                        188 00104$:
-                                    189 ;src/main.c:43: }
-      00007F E1               [12]  190 	pop	hl
-      000080 F1               [12]  191 	pop	af
-      000081 E9               [ 4]  192 	jp	(hl)
-                                    193 ;src/main.c:44: static void print_u16(UINT8 x, UINT8 y, UINT16 v) {
-                                    194 ;	---------------------------------
-                                    195 ; Function print_u16
-                                    196 ; ---------------------------------
-      000082                        197 _print_u16:
-      000082 E8 FA            [16]  198 	add	sp, #-6
-      000084 47               [ 4]  199 	ld	b, a
-                                    200 ;src/main.c:46: gotoxy(x, y);
-      000085 7B               [ 4]  201 	ld	a, e
-      000086 F5               [16]  202 	push	af
-      000087 33               [ 8]  203 	inc	sp
-      000088 C5               [16]  204 	push	bc
-      000089 33               [ 8]  205 	inc	sp
-      00008A CDr00r00         [24]  206 	call	_gotoxy
-      00008D E1               [12]  207 	pop	hl
-                                    208 ;src/main.c:47: if (!v) { putchar('0'); return; }
-      00008E F8 09            [12]  209 	ldhl	sp,	#9
-      000090 3A               [ 8]  210 	ld	a, (hl-)
-      000091 B6               [ 8]  211 	or	a, (hl)
-      000092 20 0A            [12]  212 	jr	NZ, 00115$
-      000094 3E 30            [ 8]  213 	ld	a, #0x30
-      000096 F5               [16]  214 	push	af
-      000097 33               [ 8]  215 	inc	sp
-      000098 CDr00r00         [24]  216 	call	_putchar
-      00009B 33               [ 8]  217 	inc	sp
-      00009C 18 5A            [12]  218 	jr	00110$
-                                    219 ;src/main.c:48: while (v && n < 5) { b[n++] = '0' + v % 10; v /= 10; }
-      00009E                        220 00115$:
-      00009E 1E 00            [ 8]  221 	ld	e, #0x00
-      0000A0                        222 00104$:
-      0000A0 F8 09            [12]  223 	ldhl	sp,	#9
-      0000A2 3A               [ 8]  224 	ld	a, (hl-)
-      0000A3 B6               [ 8]  225 	or	a, (hl)
-      0000A4 28 39            [12]  226 	jr	Z, 00117$
-      0000A6 7B               [ 4]  227 	ld	a, e
-      0000A7 D6 05            [ 8]  228 	sub	a, #0x05
-      0000A9 30 34            [12]  229 	jr	NC, 00117$
-      0000AB D5               [16]  230 	push	de
-      0000AC 16 00            [ 8]  231 	ld	d, #0x00
-      0000AE 21 02 00         [12]  232 	ld	hl, #2
-      0000B1 39               [ 8]  233 	add	hl, sp
-      0000B2 19               [ 8]  234 	add	hl, de
-      0000B3 D1               [12]  235 	pop	de
-      0000B4 1C               [ 4]  236 	inc	e
-      0000B5 E5               [16]  237 	push	hl
-      0000B6 D5               [16]  238 	push	de
-      0000B7 01 0A 00         [12]  239 	ld	bc, #0x000a
-      0000BA E5               [16]  240 	push	hl
-      0000BB F8 0E            [12]  241 	ldhl	sp,	#14
-      0000BD 5E               [ 8]  242 	ld	e, (hl)
-      0000BE F8 0F            [12]  243 	ldhl	sp,	#15
-      0000C0 56               [ 8]  244 	ld	d, (hl)
-      0000C1 E1               [12]  245 	pop	hl
-      0000C2 CDr00r00         [24]  246 	call	__moduint
-      0000C5 D1               [12]  247 	pop	de
-      0000C6 E1               [12]  248 	pop	hl
-      0000C7 79               [ 4]  249 	ld	a, c
-      0000C8 C6 30            [ 8]  250 	add	a, #0x30
-      0000CA 77               [ 8]  251 	ld	(hl), a
-      0000CB D5               [16]  252 	push	de
-      0000CC 01 0A 00         [12]  253 	ld	bc, #0x000a
-      0000CF F8 0A            [12]  254 	ldhl	sp,	#10
-      0000D1 2A               [ 8]  255 	ld	a, (hl+)
-      0000D2 5F               [ 4]  256 	ld	e, a
-      0000D3 56               [ 8]  257 	ld	d, (hl)
-      0000D4 CDr00r00         [24]  258 	call	__divuint
-      0000D7 D1               [12]  259 	pop	de
-      0000D8 F8 08            [12]  260 	ldhl	sp,	#8
-      0000DA 79               [ 4]  261 	ld	a, c
-      0000DB 22               [ 8]  262 	ld	(hl+), a
-      0000DC 70               [ 8]  263 	ld	(hl), b
-      0000DD 18 C1            [12]  264 	jr	00104$
-                                    265 ;src/main.c:49: while (n) putchar(b[--n]);
-      0000DF                        266 00117$:
-      0000DF 4B               [ 4]  267 	ld	c, e
-      0000E0                        268 00107$:
-      0000E0 79               [ 4]  269 	ld	a, c
-      0000E1 B7               [ 4]  270 	or	a, a
-      0000E2 28 14            [12]  271 	jr	Z, 00110$
-      0000E4 0D               [ 4]  272 	dec	c
-      0000E5 59               [ 4]  273 	ld	e, c
-      0000E6 16 00            [ 8]  274 	ld	d, #0x00
-      0000E8 21 00 00         [12]  275 	ld	hl, #0
-      0000EB 39               [ 8]  276 	add	hl, sp
-      0000EC 19               [ 8]  277 	add	hl, de
-      0000ED 7E               [ 8]  278 	ld	a, (hl)
-      0000EE C5               [16]  279 	push	bc
-      0000EF F5               [16]  280 	push	af
-      0000F0 33               [ 8]  281 	inc	sp
-      0000F1 CDr00r00         [24]  282 	call	_putchar
-      0000F4 33               [ 8]  283 	inc	sp
-      0000F5 C1               [12]  284 	pop	bc
-      0000F6 18 E8            [12]  285 	jr	00107$
-      0000F8                        286 00110$:
-                                    287 ;src/main.c:50: }
-      0000F8 E8 06            [16]  288 	add	sp, #6
-      0000FA E1               [12]  289 	pop	hl
-      0000FB F1               [12]  290 	pop	af
-      0000FC E9               [ 4]  291 	jp	(hl)
-                                    292 ;src/main.c:52: static void draw_screen(void) {
-                                    293 ;	---------------------------------
-                                    294 ; Function draw_screen
-                                    295 ; ---------------------------------
-      0000FD                        296 _draw_screen:
-                                    297 ;src/main.c:53: put_str(0, 0, "DNB III       ");
-      0000FD 11r93r01         [12]  298 	ld	de, #___str_4
-      000100 D5               [16]  299 	push	de
-      000101 AF               [ 4]  300 	xor	a, a
-      000102 5F               [ 4]  301 	ld	e, a
-      000103 CDr61r00         [24]  302 	call	_put_str
-                                    303 ;src/main.c:54: put_str(0, 1, "BREAK ");
-      000106 11rA2r01         [12]  304 	ld	de, #___str_5
-      000109 D5               [16]  305 	push	de
-      00010A 1E 01            [ 8]  306 	ld	e, #0x01
-      00010C AF               [ 4]  307 	xor	a, a
-      00010D CDr61r00         [24]  308 	call	_put_str
-                                    309 ;src/main.c:55: put_str(6, 1, BREAK_NAMES[cur]);
-      000110 01r41r00         [12]  310 	ld	bc, #_BREAK_NAMES+0
-      000113 21r00r00         [12]  311 	ld	hl, #_cur
-      000116 6E               [ 8]  312 	ld	l, (hl)
-                                    313 ;	spillPairReg hl
+                                     67 	.area _HOME
+                                     68 ;--------------------------------------------------------
+                                     69 ; code
+                                     70 ;--------------------------------------------------------
+                                     71 	.area _CODE
+                                     72 ;src/main.c:21: void tim_isr(void) __interrupt(1) { g_tick++; }
+                                     73 ;	---------------------------------
+                                     74 ; Function tim_isr
+                                     75 ; ---------------------------------
+      000000                         76 _tim_isr::
+      000000 FB               [ 4]   77 	ei
+      000001 F5               [16]   78 	push	af
+      000002 C5               [16]   79 	push bc
+      000003 D5               [16]   80 	push de
+      000004 E5               [16]   81 	push hl
+      000005 E8 FC            [16]   82 	add	sp, #-4
+      000007 21r00r00         [12]   83 	ld	hl, #_g_tick
+      00000A 54               [ 4]   84 	ld	d, h
+      00000B 5D               [ 4]   85 	ld	e, l
+      00000C F8 00            [12]   86 	ldhl	sp,	#0
+      00000E 1A               [ 8]   87 	ld	a, (de)
+      00000F 22               [ 8]   88 	ld	(hl+),	a
+      000010 13               [ 8]   89 	inc	de
+      000011 1A               [ 8]   90 	ld	a, (de)
+      000012 22               [ 8]   91 	ld	(hl+),	a
+      000013 13               [ 8]   92 	inc	de
+      000014 1A               [ 8]   93 	ld	a, (de)
+      000015 22               [ 8]   94 	ld	(hl+),	a
+      000016 13               [ 8]   95 	inc	de
+      000017 1A               [ 8]   96 	ld	a, (de)
+      000018 77               [ 8]   97 	ld	(hl), a
+      000019 D1               [12]   98 	pop	de
+      00001A D5               [16]   99 	push	de
+      00001B 7B               [ 4]  100 	ld	a, e
+      00001C C6 01            [ 8]  101 	add	a, #0x01
+      00001E 5F               [ 4]  102 	ld	e, a
+      00001F 7A               [ 4]  103 	ld	a, d
+      000020 CE 00            [ 8]  104 	adc	a, #0x00
+      000022 F5               [16]  105 	push	af
+      000023 21r01r00         [12]  106 	ld	hl, #_g_tick + 1
+      000026 32               [ 8]  107 	ld	(hl-), a
+      000027 73               [ 8]  108 	ld	(hl), e
+      000028 F8 04            [12]  109 	ldhl	sp,#4
+      00002A 2A               [ 8]  110 	ld	a, (hl+)
+      00002B 5F               [ 4]  111 	ld	e, a
+      00002C 56               [ 8]  112 	ld	d, (hl)
+      00002D F1               [12]  113 	pop	af
+      00002E 7B               [ 4]  114 	ld	a, e
+      00002F CE 00            [ 8]  115 	adc	a, #0x00
+      000031 5F               [ 4]  116 	ld	e, a
+      000032 7A               [ 4]  117 	ld	a, d
+      000033 CE 00            [ 8]  118 	adc	a, #0x00
+      000035 21r03r00         [12]  119 	ld	hl, #_g_tick + 3
+      000038 32               [ 8]  120 	ld	(hl-), a
+      000039 73               [ 8]  121 	ld	(hl), e
+      00003A E8 04            [16]  122 	add	sp, #4
+      00003C E1               [12]  123 	pop	hl
+      00003D D1               [12]  124 	pop de
+      00003E C1               [12]  125 	pop bc
+      00003F F1               [12]  126 	pop af
+      000040 C9               [16]  127 	ret
+      000041                        128 _BREAK_NAMES:
+      000041r43r00                  129 	.dw __str_0
+      000043                        130 __str_0:
+      000043 43 4C 4E 31 30 35      131 	.ascii "CLN105"
+      000049 00                     132 	.db 0x00
+                                    133 ;src/main.c:36: static void start_break(void) {
+                                    134 ;	---------------------------------
+                                    135 ; Function start_break
+                                    136 ; ---------------------------------
+      00004A                        137 _start_break:
+                                    138 ;src/main.c:37: play_break0();
+                                    139 ;src/main.c:38: }
+      00004A C3r00r00         [16]  140 	jp	_play_break0
+      00004D                        141 _PPQN:
+      00004D 18                     142 	.db #0x18	; 24
+      00004E 10                     143 	.db #0x10	; 16
+      00004F 08                     144 	.db #0x08	; 8
+      000050                        145 _MODE_N:
+      000050r56r00                  146 	.dw __str_1
+      000052r5Ar00                  147 	.dw __str_2
+      000054r5Er00                  148 	.dw __str_3
+      000056                        149 __str_1:
+      000056 53 32 34               150 	.ascii "S24"
+      000059 00                     151 	.db 0x00
+      00005A                        152 __str_2:
+      00005A 53 31 36               153 	.ascii "S16"
+      00005D 00                     154 	.db 0x00
+      00005E                        155 __str_3:
+      00005E 53 38                  156 	.ascii "S8"
+      000060 00                     157 	.db 0x00
+                                    158 ;src/main.c:40: static void put_str(UINT8 x, UINT8 y, const char* s) {
+                                    159 ;	---------------------------------
+                                    160 ; Function put_str
+                                    161 ; ---------------------------------
+      000061                        162 _put_str:
+      000061 47               [ 4]  163 	ld	b, a
+                                    164 ;src/main.c:41: gotoxy(x, y);
+      000062 7B               [ 4]  165 	ld	a, e
+      000063 F5               [16]  166 	push	af
+      000064 33               [ 8]  167 	inc	sp
+      000065 C5               [16]  168 	push	bc
+      000066 33               [ 8]  169 	inc	sp
+      000067 CDr00r00         [24]  170 	call	_gotoxy
+      00006A E1               [12]  171 	pop	hl
+                                    172 ;src/main.c:42: while (*s) putchar(*s++);
+      00006B F8 02            [12]  173 	ldhl	sp,	#2
+      00006D 2A               [ 8]  174 	ld	a, (hl+)
+      00006E 4F               [ 4]  175 	ld	c, a
+      00006F 46               [ 8]  176 	ld	b, (hl)
+      000070                        177 00101$:
+      000070 0A               [ 8]  178 	ld	a, (bc)
+      000071 B7               [ 4]  179 	or	a, a
+      000072 28 0B            [12]  180 	jr	Z, 00104$
+      000074 03               [ 8]  181 	inc	bc
+      000075 C5               [16]  182 	push	bc
+      000076 F5               [16]  183 	push	af
+      000077 33               [ 8]  184 	inc	sp
+      000078 CDr00r00         [24]  185 	call	_putchar
+      00007B 33               [ 8]  186 	inc	sp
+      00007C C1               [12]  187 	pop	bc
+      00007D 18 F1            [12]  188 	jr	00101$
+      00007F                        189 00104$:
+                                    190 ;src/main.c:43: }
+      00007F E1               [12]  191 	pop	hl
+      000080 F1               [12]  192 	pop	af
+      000081 E9               [ 4]  193 	jp	(hl)
+                                    194 ;src/main.c:44: static void print_u16(UINT8 x, UINT8 y, UINT16 v) {
+                                    195 ;	---------------------------------
+                                    196 ; Function print_u16
+                                    197 ; ---------------------------------
+      000082                        198 _print_u16:
+      000082 E8 FA            [16]  199 	add	sp, #-6
+      000084 47               [ 4]  200 	ld	b, a
+                                    201 ;src/main.c:46: gotoxy(x, y);
+      000085 7B               [ 4]  202 	ld	a, e
+      000086 F5               [16]  203 	push	af
+      000087 33               [ 8]  204 	inc	sp
+      000088 C5               [16]  205 	push	bc
+      000089 33               [ 8]  206 	inc	sp
+      00008A CDr00r00         [24]  207 	call	_gotoxy
+      00008D E1               [12]  208 	pop	hl
+                                    209 ;src/main.c:47: if (!v) { putchar('0'); return; }
+      00008E F8 09            [12]  210 	ldhl	sp,	#9
+      000090 3A               [ 8]  211 	ld	a, (hl-)
+      000091 B6               [ 8]  212 	or	a, (hl)
+      000092 20 0A            [12]  213 	jr	NZ, 00115$
+      000094 3E 30            [ 8]  214 	ld	a, #0x30
+      000096 F5               [16]  215 	push	af
+      000097 33               [ 8]  216 	inc	sp
+      000098 CDr00r00         [24]  217 	call	_putchar
+      00009B 33               [ 8]  218 	inc	sp
+      00009C 18 5A            [12]  219 	jr	00110$
+                                    220 ;src/main.c:48: while (v && n < 5) { b[n++] = '0' + v % 10; v /= 10; }
+      00009E                        221 00115$:
+      00009E 1E 00            [ 8]  222 	ld	e, #0x00
+      0000A0                        223 00104$:
+      0000A0 F8 09            [12]  224 	ldhl	sp,	#9
+      0000A2 3A               [ 8]  225 	ld	a, (hl-)
+      0000A3 B6               [ 8]  226 	or	a, (hl)
+      0000A4 28 39            [12]  227 	jr	Z, 00117$
+      0000A6 7B               [ 4]  228 	ld	a, e
+      0000A7 D6 05            [ 8]  229 	sub	a, #0x05
+      0000A9 30 34            [12]  230 	jr	NC, 00117$
+      0000AB D5               [16]  231 	push	de
+      0000AC 16 00            [ 8]  232 	ld	d, #0x00
+      0000AE 21 02 00         [12]  233 	ld	hl, #2
+      0000B1 39               [ 8]  234 	add	hl, sp
+      0000B2 19               [ 8]  235 	add	hl, de
+      0000B3 D1               [12]  236 	pop	de
+      0000B4 1C               [ 4]  237 	inc	e
+      0000B5 E5               [16]  238 	push	hl
+      0000B6 D5               [16]  239 	push	de
+      0000B7 01 0A 00         [12]  240 	ld	bc, #0x000a
+      0000BA E5               [16]  241 	push	hl
+      0000BB F8 0E            [12]  242 	ldhl	sp,	#14
+      0000BD 5E               [ 8]  243 	ld	e, (hl)
+      0000BE F8 0F            [12]  244 	ldhl	sp,	#15
+      0000C0 56               [ 8]  245 	ld	d, (hl)
+      0000C1 E1               [12]  246 	pop	hl
+      0000C2 CDr00r00         [24]  247 	call	__moduint
+      0000C5 D1               [12]  248 	pop	de
+      0000C6 E1               [12]  249 	pop	hl
+      0000C7 79               [ 4]  250 	ld	a, c
+      0000C8 C6 30            [ 8]  251 	add	a, #0x30
+      0000CA 77               [ 8]  252 	ld	(hl), a
+      0000CB D5               [16]  253 	push	de
+      0000CC 01 0A 00         [12]  254 	ld	bc, #0x000a
+      0000CF F8 0A            [12]  255 	ldhl	sp,	#10
+      0000D1 2A               [ 8]  256 	ld	a, (hl+)
+      0000D2 5F               [ 4]  257 	ld	e, a
+      0000D3 56               [ 8]  258 	ld	d, (hl)
+      0000D4 CDr00r00         [24]  259 	call	__divuint
+      0000D7 D1               [12]  260 	pop	de
+      0000D8 F8 08            [12]  261 	ldhl	sp,	#8
+      0000DA 79               [ 4]  262 	ld	a, c
+      0000DB 22               [ 8]  263 	ld	(hl+), a
+      0000DC 70               [ 8]  264 	ld	(hl), b
+      0000DD 18 C1            [12]  265 	jr	00104$
+                                    266 ;src/main.c:49: while (n) putchar(b[--n]);
+      0000DF                        267 00117$:
+      0000DF 4B               [ 4]  268 	ld	c, e
+      0000E0                        269 00107$:
+      0000E0 79               [ 4]  270 	ld	a, c
+      0000E1 B7               [ 4]  271 	or	a, a
+      0000E2 28 14            [12]  272 	jr	Z, 00110$
+      0000E4 0D               [ 4]  273 	dec	c
+      0000E5 59               [ 4]  274 	ld	e, c
+      0000E6 16 00            [ 8]  275 	ld	d, #0x00
+      0000E8 21 00 00         [12]  276 	ld	hl, #0
+      0000EB 39               [ 8]  277 	add	hl, sp
+      0000EC 19               [ 8]  278 	add	hl, de
+      0000ED 7E               [ 8]  279 	ld	a, (hl)
+      0000EE C5               [16]  280 	push	bc
+      0000EF F5               [16]  281 	push	af
+      0000F0 33               [ 8]  282 	inc	sp
+      0000F1 CDr00r00         [24]  283 	call	_putchar
+      0000F4 33               [ 8]  284 	inc	sp
+      0000F5 C1               [12]  285 	pop	bc
+      0000F6 18 E8            [12]  286 	jr	00107$
+      0000F8                        287 00110$:
+                                    288 ;src/main.c:50: }
+      0000F8 E8 06            [16]  289 	add	sp, #6
+      0000FA E1               [12]  290 	pop	hl
+      0000FB F1               [12]  291 	pop	af
+      0000FC E9               [ 4]  292 	jp	(hl)
+                                    293 ;src/main.c:52: static void draw_screen(void) {
+                                    294 ;	---------------------------------
+                                    295 ; Function draw_screen
+                                    296 ; ---------------------------------
+      0000FD                        297 _draw_screen:
+                                    298 ;src/main.c:53: put_str(0, 0, "DNB III       ");
+      0000FD 11r93r01         [12]  299 	ld	de, #___str_4
+      000100 D5               [16]  300 	push	de
+      000101 AF               [ 4]  301 	xor	a, a
+      000102 5F               [ 4]  302 	ld	e, a
+      000103 CDr61r00         [24]  303 	call	_put_str
+                                    304 ;src/main.c:54: put_str(0, 1, "BREAK ");
+      000106 11rA2r01         [12]  305 	ld	de, #___str_5
+      000109 D5               [16]  306 	push	de
+      00010A 1E 01            [ 8]  307 	ld	e, #0x01
+      00010C AF               [ 4]  308 	xor	a, a
+      00010D CDr61r00         [24]  309 	call	_put_str
+                                    310 ;src/main.c:55: put_str(6, 1, BREAK_NAMES[cur]);
+      000110 01r41r00         [12]  311 	ld	bc, #_BREAK_NAMES+0
+      000113 21r00r00         [12]  312 	ld	hl, #_cur
+      000116 6E               [ 8]  313 	ld	l, (hl)
                                     314 ;	spillPairReg hl
-      000117 26 00            [ 8]  315 	ld	h, #0x00
-                                    316 ;	spillPairReg hl
+                                    315 ;	spillPairReg hl
+      000117 26 00            [ 8]  316 	ld	h, #0x00
                                     317 ;	spillPairReg hl
-      000119 29               [ 8]  318 	add	hl, hl
-      00011A 09               [ 8]  319 	add	hl, bc
-      00011B 2A               [ 8]  320 	ld	a, (hl+)
-      00011C 4F               [ 4]  321 	ld	c, a
-      00011D 46               [ 8]  322 	ld	b, (hl)
-      00011E C5               [16]  323 	push	bc
-      00011F 1E 01            [ 8]  324 	ld	e, #0x01
-      000121 3E 06            [ 8]  325 	ld	a, #0x06
-      000123 CDr61r00         [24]  326 	call	_put_str
-                                    327 ;src/main.c:56: put_str(0, 2, "BPM  ");
-      000126 11rA9r01         [12]  328 	ld	de, #___str_6
-      000129 D5               [16]  329 	push	de
-      00012A 1E 02            [ 8]  330 	ld	e, #0x02
-      00012C AF               [ 4]  331 	xor	a, a
-      00012D CDr61r00         [24]  332 	call	_put_str
-                                    333 ;src/main.c:57: print_u16(5, 2, bpm);
-      000130 21r01r00         [12]  334 	ld	hl, #_bpm
-      000133 2A               [ 8]  335 	ld	a, (hl+)
-      000134 5F               [ 4]  336 	ld	e, a
-      000135 56               [ 8]  337 	ld	d, (hl)
-      000136 D5               [16]  338 	push	de
-      000137 1E 02            [ 8]  339 	ld	e, #0x02
-      000139 3E 05            [ 8]  340 	ld	a, #0x05
-      00013B CDr82r00         [24]  341 	call	_print_u16
-                                    342 ;src/main.c:58: put_str(0, 3, running ? "RUN  " : "STOP ");
-      00013E FAr03r00         [16]  343 	ld	a, (#_running)
-      000141 B7               [ 4]  344 	or	a, a
-      000142 28 05            [12]  345 	jr	Z, 00103$
-      000144 01rAFr01         [12]  346 	ld	bc, #___str_7+0
-      000147 18 03            [12]  347 	jr	00104$
-      000149                        348 00103$:
-      000149 01rB5r01         [12]  349 	ld	bc, #___str_8+0
-      00014C                        350 00104$:
-      00014C C5               [16]  351 	push	bc
-      00014D 1E 03            [ 8]  352 	ld	e, #0x03
-      00014F AF               [ 4]  353 	xor	a, a
-      000150 CDr61r00         [24]  354 	call	_put_str
-                                    355 ;src/main.c:59: put_str(0, 4, MODE_N[clk_mode]);
-      000153 01r50r00         [12]  356 	ld	bc, #_MODE_N+0
-      000156 21r05r00         [12]  357 	ld	hl, #_clk_mode
-      000159 6E               [ 8]  358 	ld	l, (hl)
-                                    359 ;	spillPairReg hl
+                                    318 ;	spillPairReg hl
+      000119 29               [ 8]  319 	add	hl, hl
+      00011A 09               [ 8]  320 	add	hl, bc
+      00011B 2A               [ 8]  321 	ld	a, (hl+)
+      00011C 4F               [ 4]  322 	ld	c, a
+      00011D 46               [ 8]  323 	ld	b, (hl)
+      00011E C5               [16]  324 	push	bc
+      00011F 1E 01            [ 8]  325 	ld	e, #0x01
+      000121 3E 06            [ 8]  326 	ld	a, #0x06
+      000123 CDr61r00         [24]  327 	call	_put_str
+                                    328 ;src/main.c:56: put_str(0, 2, "BPM  ");
+      000126 11rA9r01         [12]  329 	ld	de, #___str_6
+      000129 D5               [16]  330 	push	de
+      00012A 1E 02            [ 8]  331 	ld	e, #0x02
+      00012C AF               [ 4]  332 	xor	a, a
+      00012D CDr61r00         [24]  333 	call	_put_str
+                                    334 ;src/main.c:57: print_u16(5, 2, bpm);
+      000130 21r01r00         [12]  335 	ld	hl, #_bpm
+      000133 2A               [ 8]  336 	ld	a, (hl+)
+      000134 5F               [ 4]  337 	ld	e, a
+      000135 56               [ 8]  338 	ld	d, (hl)
+      000136 D5               [16]  339 	push	de
+      000137 1E 02            [ 8]  340 	ld	e, #0x02
+      000139 3E 05            [ 8]  341 	ld	a, #0x05
+      00013B CDr82r00         [24]  342 	call	_print_u16
+                                    343 ;src/main.c:58: put_str(0, 3, running ? "RUN  " : "STOP ");
+      00013E FAr03r00         [16]  344 	ld	a, (#_running)
+      000141 B7               [ 4]  345 	or	a, a
+      000142 28 05            [12]  346 	jr	Z, 00103$
+      000144 01rAFr01         [12]  347 	ld	bc, #___str_7+0
+      000147 18 03            [12]  348 	jr	00104$
+      000149                        349 00103$:
+      000149 01rB5r01         [12]  350 	ld	bc, #___str_8+0
+      00014C                        351 00104$:
+      00014C C5               [16]  352 	push	bc
+      00014D 1E 03            [ 8]  353 	ld	e, #0x03
+      00014F AF               [ 4]  354 	xor	a, a
+      000150 CDr61r00         [24]  355 	call	_put_str
+                                    356 ;src/main.c:59: put_str(0, 4, MODE_N[clk_mode]);
+      000153 01r50r00         [12]  357 	ld	bc, #_MODE_N+0
+      000156 21r05r00         [12]  358 	ld	hl, #_clk_mode
+      000159 6E               [ 8]  359 	ld	l, (hl)
                                     360 ;	spillPairReg hl
-      00015A 26 00            [ 8]  361 	ld	h, #0x00
-                                    362 ;	spillPairReg hl
+                                    361 ;	spillPairReg hl
+      00015A 26 00            [ 8]  362 	ld	h, #0x00
                                     363 ;	spillPairReg hl
-      00015C 29               [ 8]  364 	add	hl, hl
-      00015D 09               [ 8]  365 	add	hl, bc
-      00015E 2A               [ 8]  366 	ld	a, (hl+)
-      00015F 4F               [ 4]  367 	ld	c, a
-      000160 46               [ 8]  368 	ld	b, (hl)
-      000161 C5               [16]  369 	push	bc
-      000162 1E 04            [ 8]  370 	ld	e, #0x04
-      000164 AF               [ 4]  371 	xor	a, a
-      000165 CDr61r00         [24]  372 	call	_put_str
-                                    373 ;src/main.c:60: put_str(6, 4, dest ? " JACK" : " LINK");
-      000168 FAr04r00         [16]  374 	ld	a, (#_dest)
-      00016B B7               [ 4]  375 	or	a, a
-      00016C 28 05            [12]  376 	jr	Z, 00105$
-      00016E 01rBBr01         [12]  377 	ld	bc, #___str_9+0
-      000171 18 03            [12]  378 	jr	00106$
-      000173                        379 00105$:
-      000173 01rC1r01         [12]  380 	ld	bc, #___str_10+0
-      000176                        381 00106$:
-      000176 C5               [16]  382 	push	bc
-      000177 1E 04            [ 8]  383 	ld	e, #0x04
-      000179 3E 06            [ 8]  384 	ld	a, #0x06
-      00017B CDr61r00         [24]  385 	call	_put_str
-                                    386 ;src/main.c:61: put_str(0, 5, "L/R break U/D BPM A run");
-      00017E 11rC7r01         [12]  387 	ld	de, #___str_11
-      000181 D5               [16]  388 	push	de
-      000182 1E 05            [ 8]  389 	ld	e, #0x05
-      000184 AF               [ 4]  390 	xor	a, a
-      000185 CDr61r00         [24]  391 	call	_put_str
-                                    392 ;src/main.c:62: put_str(0, 6, "B mode SEL out L click");
-      000188 11rDFr01         [12]  393 	ld	de, #___str_12
-      00018B D5               [16]  394 	push	de
-      00018C 1E 06            [ 8]  395 	ld	e, #0x06
-      00018E AF               [ 4]  396 	xor	a, a
-      00018F CDr61r00         [24]  397 	call	_put_str
-                                    398 ;src/main.c:63: }
-      000192 C9               [16]  399 	ret
-      000193                        400 ___str_4:
-      000193 44 4E 42 20 49 49 49   401 	.ascii "DNB III       "
+                                    364 ;	spillPairReg hl
+      00015C 29               [ 8]  365 	add	hl, hl
+      00015D 09               [ 8]  366 	add	hl, bc
+      00015E 2A               [ 8]  367 	ld	a, (hl+)
+      00015F 4F               [ 4]  368 	ld	c, a
+      000160 46               [ 8]  369 	ld	b, (hl)
+      000161 C5               [16]  370 	push	bc
+      000162 1E 04            [ 8]  371 	ld	e, #0x04
+      000164 AF               [ 4]  372 	xor	a, a
+      000165 CDr61r00         [24]  373 	call	_put_str
+                                    374 ;src/main.c:60: put_str(6, 4, dest ? " JACK" : " LINK");
+      000168 FAr04r00         [16]  375 	ld	a, (#_dest)
+      00016B B7               [ 4]  376 	or	a, a
+      00016C 28 05            [12]  377 	jr	Z, 00105$
+      00016E 01rBBr01         [12]  378 	ld	bc, #___str_9+0
+      000171 18 03            [12]  379 	jr	00106$
+      000173                        380 00105$:
+      000173 01rC1r01         [12]  381 	ld	bc, #___str_10+0
+      000176                        382 00106$:
+      000176 C5               [16]  383 	push	bc
+      000177 1E 04            [ 8]  384 	ld	e, #0x04
+      000179 3E 06            [ 8]  385 	ld	a, #0x06
+      00017B CDr61r00         [24]  386 	call	_put_str
+                                    387 ;src/main.c:61: put_str(0, 5, "L/R break U/D BPM A run");
+      00017E 11rC7r01         [12]  388 	ld	de, #___str_11
+      000181 D5               [16]  389 	push	de
+      000182 1E 05            [ 8]  390 	ld	e, #0x05
+      000184 AF               [ 4]  391 	xor	a, a
+      000185 CDr61r00         [24]  392 	call	_put_str
+                                    393 ;src/main.c:62: put_str(0, 6, "B mode SEL out L click");
+      000188 11rDFr01         [12]  394 	ld	de, #___str_12
+      00018B D5               [16]  395 	push	de
+      00018C 1E 06            [ 8]  396 	ld	e, #0x06
+      00018E AF               [ 4]  397 	xor	a, a
+      00018F CDr61r00         [24]  398 	call	_put_str
+                                    399 ;src/main.c:63: }
+      000192 C9               [16]  400 	ret
+      000193                        401 ___str_4:
+      000193 44 4E 42 20 49 49 49   402 	.ascii "DNB III       "
              20 20 20 20 20 20 20
-      0001A1 00                     402 	.db 0x00
-      0001A2                        403 ___str_5:
-      0001A2 42 52 45 41 4B 20      404 	.ascii "BREAK "
-      0001A8 00                     405 	.db 0x00
-      0001A9                        406 ___str_6:
-      0001A9 42 50 4D 20 20         407 	.ascii "BPM  "
-      0001AE 00                     408 	.db 0x00
-      0001AF                        409 ___str_7:
-      0001AF 52 55 4E 20 20         410 	.ascii "RUN  "
-      0001B4 00                     411 	.db 0x00
-      0001B5                        412 ___str_8:
-      0001B5 53 54 4F 50 20         413 	.ascii "STOP "
-      0001BA 00                     414 	.db 0x00
-      0001BB                        415 ___str_9:
-      0001BB 20 4A 41 43 4B         416 	.ascii " JACK"
-      0001C0 00                     417 	.db 0x00
-      0001C1                        418 ___str_10:
-      0001C1 20 4C 49 4E 4B         419 	.ascii " LINK"
-      0001C6 00                     420 	.db 0x00
-      0001C7                        421 ___str_11:
-      0001C7 4C 2F 52 20 62 72 65   422 	.ascii "L/R break U/D BPM A run"
+      0001A1 00                     403 	.db 0x00
+      0001A2                        404 ___str_5:
+      0001A2 42 52 45 41 4B 20      405 	.ascii "BREAK "
+      0001A8 00                     406 	.db 0x00
+      0001A9                        407 ___str_6:
+      0001A9 42 50 4D 20 20         408 	.ascii "BPM  "
+      0001AE 00                     409 	.db 0x00
+      0001AF                        410 ___str_7:
+      0001AF 52 55 4E 20 20         411 	.ascii "RUN  "
+      0001B4 00                     412 	.db 0x00
+      0001B5                        413 ___str_8:
+      0001B5 53 54 4F 50 20         414 	.ascii "STOP "
+      0001BA 00                     415 	.db 0x00
+      0001BB                        416 ___str_9:
+      0001BB 20 4A 41 43 4B         417 	.ascii " JACK"
+      0001C0 00                     418 	.db 0x00
+      0001C1                        419 ___str_10:
+      0001C1 20 4C 49 4E 4B         420 	.ascii " LINK"
+      0001C6 00                     421 	.db 0x00
+      0001C7                        422 ___str_11:
+      0001C7 4C 2F 52 20 62 72 65   423 	.ascii "L/R break U/D BPM A run"
              61 6B 20 55 2F 44 20
              42 50 4D 20 41 20 72
              75 6E
-      0001DE 00                     423 	.db 0x00
-      0001DF                        424 ___str_12:
-      0001DF 42 20 6D 6F 64 65 20   425 	.ascii "B mode SEL out L click"
+      0001DE 00                     424 	.db 0x00
+      0001DF                        425 ___str_12:
+      0001DF 42 20 6D 6F 64 65 20   426 	.ascii "B mode SEL out L click"
              53 45 4C 20 6F 75 74
              20 4C 20 63 6C 69 63
              6B
-      0001F5 00                     426 	.db 0x00
-                                    427 ;src/main.c:65: static void send_edge(void) {
-                                    428 ;	---------------------------------
-                                    429 ; Function send_edge
-                                    430 ; ---------------------------------
-      0001F6                        431 _send_edge:
-                                    432 ;src/main.c:66: out_state ^= 1;
-      0001F6 21r06r00         [12]  433 	ld	hl, #_out_state
-      0001F9 7E               [ 8]  434 	ld	a, (hl)
-      0001FA EE 01            [ 8]  435 	xor	a, #0x01
-      0001FC 77               [ 8]  436 	ld	(hl), a
-                                    437 ;src/main.c:67: SER_D = out_state ? 0xFF : 0x00;
-      0001FD 7E               [ 8]  438 	ld	a, (hl)
-      0001FE B7               [ 4]  439 	or	a, a
-      0001FF 3E FF            [ 8]  440 	ld	a, #0xff
-      000201 20 01            [12]  441 	jr	NZ, 00107$
-      000203 AF               [ 4]  442 	xor	a, a
-      000204                        443 00107$:
-      000204 E0 01            [12]  444 	ldh	(#0xff01), a
-                                    445 ;src/main.c:68: SER_C = 0x81;
-      000206 3E 81            [ 8]  446 	ld	a, #0x81
-      000208 E0 02            [12]  447 	ldh	(#0xff02), a
-                                    448 ;src/main.c:69: while (SER_C & 0x80) /* wait */ ;
-      00020A                        449 00101$:
-      00020A F0 02            [12]  450 	ldh	a, (#0xff02)
-      00020C 07               [ 4]  451 	rlca
-      00020D 38 FB            [12]  452 	jr	C, 00101$
-                                    453 ;src/main.c:70: SER_C = 0x00;
-      00020F AF               [ 4]  454 	xor	a, a
-      000210 E0 02            [12]  455 	ldh	(#0xff02), a
-                                    456 ;src/main.c:71: }
-      000212 C9               [16]  457 	ret
-                                    458 ;src/main.c:73: static void jack_pulse(UINT8 accent) {
-                                    459 ;	---------------------------------
-                                    460 ; Function jack_pulse
-                                    461 ; ---------------------------------
-      000213                        462 _jack_pulse:
-                                    463 ;src/main.c:74: if (accent) {
-      000213 B7               [ 4]  464 	or	a, a
-      000214 28 15            [12]  465 	jr	Z, 00102$
-                                    466 ;src/main.c:75: NR10_REG = 0x50;
-      000216 3E 50            [ 8]  467 	ld	a, #0x50
-      000218 E0r00            [12]  468 	ldh	(_NR10_REG + 0), a
-                                    469 ;src/main.c:76: NR11_REG = 0x3F;
-      00021A 3E 3F            [ 8]  470 	ld	a, #0x3f
-      00021C E0r00            [12]  471 	ldh	(_NR11_REG + 0), a
-                                    472 ;src/main.c:77: NR12_REG = 0xF1;
-      00021E 3E F1            [ 8]  473 	ld	a, #0xf1
-      000220 E0r00            [12]  474 	ldh	(_NR12_REG + 0), a
-                                    475 ;src/main.c:78: NR13_REG = 0x11;
-      000222 3E 11            [ 8]  476 	ld	a, #0x11
-      000224 E0r00            [12]  477 	ldh	(_NR13_REG + 0), a
-                                    478 ;src/main.c:79: NR14_REG = 0xC0;
-      000226 3E C0            [ 8]  479 	ld	a, #0xc0
-      000228 E0r00            [12]  480 	ldh	(_NR14_REG + 0), a
-      00022A C9               [16]  481 	ret
-      00022B                        482 00102$:
-                                    483 ;src/main.c:81: NR10_REG = 0x00;
-      00022B AF               [ 4]  484 	xor	a, a
-      00022C E0r00            [12]  485 	ldh	(_NR10_REG + 0), a
-                                    486 ;src/main.c:82: NR21_REG = 0x3F;
-      00022E 3E 3F            [ 8]  487 	ld	a, #0x3f
-      000230 E0r00            [12]  488 	ldh	(_NR21_REG + 0), a
-                                    489 ;src/main.c:83: NR22_REG = 0xF0;
-      000232 3E F0            [ 8]  490 	ld	a, #0xf0
-      000234 E0r00            [12]  491 	ldh	(_NR22_REG + 0), a
-                                    492 ;src/main.c:84: NR23_REG = 0x4A;
-      000236 3E 4A            [ 8]  493 	ld	a, #0x4a
-      000238 E0r00            [12]  494 	ldh	(_NR23_REG + 0), a
-                                    495 ;src/main.c:85: NR24_REG = 0xC0;
-      00023A 3E C0            [ 8]  496 	ld	a, #0xc0
-      00023C E0r00            [12]  497 	ldh	(_NR24_REG + 0), a
-                                    498 ;src/main.c:87: }
-      00023E C9               [16]  499 	ret
-                                    500 ;src/main.c:89: static void set_bpm_tma(void) {
-                                    501 ;	---------------------------------
-                                    502 ; Function set_bpm_tma
-                                    503 ; ---------------------------------
-      00023F                        504 _set_bpm_tma:
-                                    505 ;src/main.c:91: UINT8 tma = 246 - (UINT8)(((bpm - 61) * 25u) / 100u);
-      00023F 21r01r00         [12]  506 	ld	hl, #_bpm
-      000242 2A               [ 8]  507 	ld	a, (hl+)
-      000243 C6 C3            [ 8]  508 	add	a, #0xc3
-      000245 4F               [ 4]  509 	ld	c, a
-      000246 7E               [ 8]  510 	ld	a, (hl)
-      000247 CE FF            [ 8]  511 	adc	a, #0xff
-      000249 47               [ 4]  512 	ld	b, a
-      00024A 69               [ 4]  513 	ld	l, c
-      00024B 60               [ 4]  514 	ld	h, b
-      00024C 29               [ 8]  515 	add	hl, hl
-      00024D 09               [ 8]  516 	add	hl, bc
-      00024E 29               [ 8]  517 	add	hl, hl
-      00024F 29               [ 8]  518 	add	hl, hl
-      000250 29               [ 8]  519 	add	hl, hl
-      000251 09               [ 8]  520 	add	hl, bc
-      000252 01 64 00         [12]  521 	ld	bc, #0x0064
-      000255 5D               [ 4]  522 	ld	e, l
-      000256 54               [ 4]  523 	ld	d, h
-      000257 CDr00r00         [24]  524 	call	__divuint
-      00025A 3E F6            [ 8]  525 	ld	a, #0xf6
-      00025C 91               [ 4]  526 	sub	a, c
-      00025D 4F               [ 4]  527 	ld	c, a
-                                    528 ;src/main.c:92: if (tma > 246) tma = 246;
-      00025E 3E F6            [ 8]  529 	ld	a, #0xf6
-      000260 91               [ 4]  530 	sub	a, c
-      000261 30 02            [12]  531 	jr	NC, 00102$
-      000263 0E F6            [ 8]  532 	ld	c, #0xf6
-      000265                        533 00102$:
-                                    534 ;src/main.c:93: if (tma < 199) tma = 199;
-      000265 79               [ 4]  535 	ld	a, c
-      000266 D6 C7            [ 8]  536 	sub	a, #0xc7
-      000268 30 02            [12]  537 	jr	NC, 00104$
-      00026A 0E C7            [ 8]  538 	ld	c, #0xc7
-      00026C                        539 00104$:
-                                    540 ;src/main.c:94: __critical { rTMA = tma; }
-      00026C F3               [ 4]  541 	di
-      00026D 79               [ 4]  542 	ld	a, c
-      00026E E0r00            [12]  543 	ldh	(_TMA_REG + 0), a
-      000270 FB               [ 4]  544 	ei
-                                    545 ;src/main.c:95: }
-      000271 C9               [16]  546 	ret
-                                    547 ;src/main.c:97: void main(void) {
-                                    548 ;	---------------------------------
-                                    549 ; Function main
-                                    550 ; ---------------------------------
-      000272                        551 _main::
-      000272 E8 F7            [16]  552 	add	sp, #-9
-                                    553 ;../gbc/gbdk/include/gb/gb.h:743: __asm__("di");
-      000274 F3               [ 4]  554 	di
-                                    555 ;src/main.c:99: NR52_REG = 0x80;
-      000275 3E 80            [ 8]  556 	ld	a, #0x80
-      000277 E0r00            [12]  557 	ldh	(_NR52_REG + 0), a
-                                    558 ;src/main.c:100: NR50_REG = 0x77;
-      000279 3E 77            [ 8]  559 	ld	a, #0x77
-      00027B E0r00            [12]  560 	ldh	(_NR50_REG + 0), a
-                                    561 ;src/main.c:101: NR51_REG = 0xFF;
-      00027D 3E FF            [ 8]  562 	ld	a, #0xff
-      00027F E0r00            [12]  563 	ldh	(_NR51_REG + 0), a
-                                    564 ;src/main.c:102: rTMA = 240;
-      000281 3E F0            [ 8]  565 	ld	a, #0xf0
-      000283 E0r00            [12]  566 	ldh	(_TMA_REG + 0), a
-                                    567 ;src/main.c:103: rTAC = 0x04;
-      000285 3E 04            [ 8]  568 	ld	a, #0x04
-      000287 E0r00            [12]  569 	ldh	(_TAC_REG + 0), a
-                                    570 ;src/main.c:104: set_interrupts(VBL_IFLAG | TIM_IFLAG);
-      000289 3E 05            [ 8]  571 	ld	a, #0x05
-      00028B F5               [16]  572 	push	af
-      00028C 33               [ 8]  573 	inc	sp
-      00028D CDr00r00         [24]  574 	call	_set_interrupts
-      000290 33               [ 8]  575 	inc	sp
-                                    576 ;src/main.c:105: add_TIM(tim_isr);
-      000291 11r00r00         [12]  577 	ld	de, #_tim_isr
-      000294 D5               [16]  578 	push	de
-      000295 CDr00r00         [24]  579 	call	_add_TIM
-      000298 33               [ 8]  580 	inc	sp
-      000299 33               [ 8]  581 	inc	sp
-                                    582 ;../gbc/gbdk/include/gb/gb.h:727: __asm__("ei");
-      00029A FB               [ 4]  583 	ei
-                                    584 ;src/main.c:108: UINT8 prevkeys = 0xFF;
-      00029B F8 00            [12]  585 	ldhl	sp,	#0
-      00029D 36 FF            [12]  586 	ld	(hl), #0xff
-                                    587 ;src/main.c:109: draw_screen();
-      00029F CDrFDr00         [24]  588 	call	_draw_screen
-      0002A2                        589 00147$:
-                                    590 ;src/main.c:112: UINT8 keys = joypad();
-      0002A2 CDr00r00         [24]  591 	call	_joypad
-      0002A5 4F               [ 4]  592 	ld	c, a
-                                    593 ;src/main.c:113: UINT8 down = keys & ~prevkeys;
-      0002A6 F8 00            [12]  594 	ldhl	sp,	#0
-      0002A8 7E               [ 8]  595 	ld	a, (hl)
-      0002A9 2F               [ 4]  596 	cpl
-      0002AA A1               [ 4]  597 	and	a, c
-      0002AB F8 06            [12]  598 	ldhl	sp,	#6
-      0002AD 77               [ 8]  599 	ld	(hl), a
-                                    600 ;src/main.c:114: prevkeys = keys;
-      0002AE F8 00            [12]  601 	ldhl	sp,	#0
-      0002B0 71               [ 8]  602 	ld	(hl), c
-                                    603 ;src/main.c:116: if (down & J_RIGHT) { cur = (cur + 1) % NBREAKS; if (running) start_break(); draw_screen(); }
-      0002B1 E5               [16]  604 	push	hl
-      0002B2 F8 08            [12]  605 	ldhl	sp,	#8
-      0002B4 CB 46            [12]  606 	bit	0, (hl)
-      0002B6 E1               [12]  607 	pop	hl
-      0002B7 28 1D            [12]  608 	jr	Z, 00104$
-      0002B9 21r00r00         [12]  609 	ld	hl, #_cur
-      0002BC 5E               [ 8]  610 	ld	e, (hl)
-      0002BD 16 00            [ 8]  611 	ld	d, #0x00
-      0002BF 13               [ 8]  612 	inc	de
-      0002C0 01 01 00         [12]  613 	ld	bc, #0x0001
-      0002C3 CDr00r00         [24]  614 	call	__modsint
-      0002C6 21r00r00         [12]  615 	ld	hl, #_cur
-      0002C9 71               [ 8]  616 	ld	(hl), c
-      0002CA FAr03r00         [16]  617 	ld	a, (#_running)
-      0002CD B7               [ 4]  618 	or	a, a
-      0002CE 28 03            [12]  619 	jr	Z, 00102$
-      0002D0 CDr4Ar00         [24]  620 	call	_start_break
-      0002D3                        621 00102$:
-      0002D3 CDrFDr00         [24]  622 	call	_draw_screen
-      0002D6                        623 00104$:
-                                    624 ;src/main.c:117: if (down & J_LEFT)  { cur = (cur + NBREAKS - 1) % NBREAKS; if (running) start_break(); draw_screen(); }
-      0002D6 F8 06            [12]  625 	ldhl	sp,	#6
-      0002D8 2A               [ 8]  626 	ld	a, (hl+)
-      0002D9 E6 02            [ 8]  627 	and	a, #0x02
-      0002DB 22               [ 8]  628 	ld	(hl+), a
-      0002DC 36 00            [12]  629 	ld	(hl), #0x00
-      0002DE 2B               [ 8]  630 	dec	hl
-      0002DF F6 00            [ 8]  631 	or	a, #0x00
-      0002E1 28 10            [12]  632 	jr	Z, 00108$
-      0002E3 AF               [ 4]  633 	xor	a, a
-                                    634 ;	spillPairReg hl
-                                    635 ;	spillPairReg hl
-      0002E4 EAr00r00         [16]  636 	ld	(_cur), a
-      0002E7 FAr03r00         [16]  637 	ld	a, (#_running)
-      0002EA B7               [ 4]  638 	or	a, a
-      0002EB 28 03            [12]  639 	jr	Z, 00106$
-      0002ED CDr4Ar00         [24]  640 	call	_start_break
-      0002F0                        641 00106$:
-      0002F0 CDrFDr00         [24]  642 	call	_draw_screen
-      0002F3                        643 00108$:
-                                    644 ;src/main.c:118: if (down & J_UP)    { if (bpm < 250) { bpm++; set_bpm_tma(); } draw_screen(); }
-      0002F3 E5               [16]  645 	push	hl
-      0002F4 F8 08            [12]  646 	ldhl	sp,	#8
-      0002F6 CB 56            [12]  647 	bit	2, (hl)
-      0002F8 E1               [12]  648 	pop	hl
-      0002F9 28 17            [12]  649 	jr	Z, 00112$
-      0002FB 21r01r00         [12]  650 	ld	hl, #_bpm
-      0002FE 2A               [ 8]  651 	ld	a, (hl+)
-      0002FF D6 FA            [ 8]  652 	sub	a, #0xfa
-      000301 7E               [ 8]  653 	ld	a, (hl)
-      000302 DE 00            [ 8]  654 	sbc	a, #0x00
-      000304 30 09            [12]  655 	jr	NC, 00110$
-      000306 2B               [ 8]  656 	dec	hl
-      000307 34               [12]  657 	inc	(hl)
-      000308 20 02            [12]  658 	jr	NZ, 00263$
-      00030A 23               [ 8]  659 	inc	hl
-      00030B 34               [12]  660 	inc	(hl)
-      00030C                        661 00263$:
-      00030C CDr3Fr02         [24]  662 	call	_set_bpm_tma
-      00030F                        663 00110$:
-      00030F CDrFDr00         [24]  664 	call	_draw_screen
-      000312                        665 00112$:
-                                    666 ;src/main.c:119: if (down & J_DOWN)  { if (bpm > 61)  { bpm--; set_bpm_tma(); } draw_screen(); }
-      000312 E5               [16]  667 	push	hl
-      000313 F8 08            [12]  668 	ldhl	sp,	#8
-      000315 CB 5E            [12]  669 	bit	3, (hl)
-      000317 E1               [12]  670 	pop	hl
-      000318 28 1D            [12]  671 	jr	Z, 00116$
-      00031A 21r01r00         [12]  672 	ld	hl, #_bpm
-      00031D 3E 3D            [ 8]  673 	ld	a, #0x3d
-      00031F 96               [ 8]  674 	sub	a, (hl)
-      000320 23               [ 8]  675 	inc	hl
-      000321 3E 00            [ 8]  676 	ld	a, #0x00
-      000323 9E               [ 8]  677 	sbc	a, (hl)
-      000324 30 0E            [12]  678 	jr	NC, 00114$
-      000326 21r01r00         [12]  679 	ld	hl, #_bpm
-      000329 2A               [ 8]  680 	ld	a, (hl+)
-      00032A 5F               [ 4]  681 	ld	e, a
-      00032B 3A               [ 8]  682 	ld	a, (hl-)
-      00032C 57               [ 4]  683 	ld	d, a
-      00032D 1B               [ 8]  684 	dec	de
-      00032E 7B               [ 4]  685 	ld	a, e
-      00032F 22               [ 8]  686 	ld	(hl+), a
-      000330 72               [ 8]  687 	ld	(hl), d
-      000331 CDr3Fr02         [24]  688 	call	_set_bpm_tma
-      000334                        689 00114$:
-      000334 CDrFDr00         [24]  690 	call	_draw_screen
-      000337                        691 00116$:
-                                    692 ;src/main.c:120: if (down & (J_A | J_START)) {
-      000337 F8 06            [12]  693 	ldhl	sp,	#6
-      000339 7E               [ 8]  694 	ld	a, (hl)
-      00033A E6 90            [ 8]  695 	and	a, #0x90
-      00033C 28 24            [12]  696 	jr	Z, 00120$
-                                    697 ;src/main.c:121: running = !running;
-      00033E 21r03r00         [12]  698 	ld	hl, #_running
-      000341 7E               [ 8]  699 	ld	a, (hl)
-      000342 D6 01            [ 8]  700 	sub	a,#0x01
-      000344 3E 00            [ 8]  701 	ld	a, #0x00
-      000346 17               [ 4]  702 	rla
-      000347 77               [ 8]  703 	ld	(hl), a
-                                    704 ;src/main.c:122: pulse_count = 0;
-      000348 AF               [ 4]  705 	xor	a, a
-      000349 21r0Fr00         [12]  706 	ld	hl, #_pulse_count
-      00034C 22               [ 8]  707 	ld	(hl+), a
-      00034D 77               [ 8]  708 	ld	(hl), a
-                                    709 ;src/main.c:123: ck_ph = 0;
-      00034E AF               [ 4]  710 	xor	a, a
-      00034F 21r0Br00         [12]  711 	ld	hl, #_ck_ph
-      000352 22               [ 8]  712 	ld	(hl+), a
-      000353 22               [ 8]  713 	ld	(hl+), a
-      000354 22               [ 8]  714 	ld	(hl+), a
-      000355 77               [ 8]  715 	ld	(hl), a
-                                    716 ;src/main.c:124: if (running) start_break();
-      000356 FAr03r00         [16]  717 	ld	a, (#_running)
-      000359 B7               [ 4]  718 	or	a, a
-      00035A 28 03            [12]  719 	jr	Z, 00118$
-      00035C CDr4Ar00         [24]  720 	call	_start_break
-      00035F                        721 00118$:
-                                    722 ;src/main.c:125: draw_screen();
-      00035F CDrFDr00         [24]  723 	call	_draw_screen
-      000362                        724 00120$:
-                                    725 ;src/main.c:127: if (down & J_B) { clk_mode = (clk_mode + 1) % 3; draw_screen(); }
-      000362 E5               [16]  726 	push	hl
-      000363 F8 08            [12]  727 	ldhl	sp,	#8
-      000365 CB 6E            [12]  728 	bit	5, (hl)
-      000367 E1               [12]  729 	pop	hl
-      000368 28 14            [12]  730 	jr	Z, 00122$
-      00036A 21r05r00         [12]  731 	ld	hl, #_clk_mode
-      00036D 5E               [ 8]  732 	ld	e, (hl)
-      00036E 16 00            [ 8]  733 	ld	d, #0x00
-      000370 13               [ 8]  734 	inc	de
-      000371 01 03 00         [12]  735 	ld	bc, #0x0003
-      000374 CDr00r00         [24]  736 	call	__modsint
-      000377 21r05r00         [12]  737 	ld	hl, #_clk_mode
-      00037A 71               [ 8]  738 	ld	(hl), c
-      00037B CDrFDr00         [24]  739 	call	_draw_screen
-      00037E                        740 00122$:
-                                    741 ;src/main.c:128: if (down & J_SELECT) { dest = !dest; draw_screen(); }
-      00037E E5               [16]  742 	push	hl
-      00037F F8 08            [12]  743 	ldhl	sp,	#8
-      000381 CB 76            [12]  744 	bit	6, (hl)
-      000383 E1               [12]  745 	pop	hl
-      000384 28 0D            [12]  746 	jr	Z, 00124$
-      000386 21r04r00         [12]  747 	ld	hl, #_dest
-      000389 7E               [ 8]  748 	ld	a, (hl)
-      00038A D6 01            [ 8]  749 	sub	a,#0x01
-      00038C 3E 00            [ 8]  750 	ld	a, #0x00
-      00038E 17               [ 4]  751 	rla
-      00038F 77               [ 8]  752 	ld	(hl), a
-      000390 CDrFDr00         [24]  753 	call	_draw_screen
-      000393                        754 00124$:
-                                    755 ;src/main.c:129: if (down & J_LEFT) { /* metronome toggle (channel 1) via vol on/off */
-      000393 F8 08            [12]  756 	ldhl	sp,	#8
-      000395 3A               [ 8]  757 	ld	a, (hl-)
-      000396 B6               [ 8]  758 	or	a, (hl)
-      000397 28 0F            [12]  759 	jr	Z, 00129$
-                                    760 ;src/main.c:130: if (NR12_REG == 0x00) NR12_REG = 0xF1; else NR12_REG = 0x00;
-      000399 FAr00r00         [16]  761 	ld	a, (#_NR12_REG)
-      00039C B7               [ 4]  762 	or	a, a
-      00039D 20 06            [12]  763 	jr	NZ, 00126$
-      00039F 3E F1            [ 8]  764 	ld	a, #0xf1
-      0003A1 E0r00            [12]  765 	ldh	(_NR12_REG + 0), a
-      0003A3 18 03            [12]  766 	jr	00129$
-      0003A5                        767 00126$:
-      0003A5 AF               [ 4]  768 	xor	a, a
-      0003A6 E0r00            [12]  769 	ldh	(_NR12_REG + 0), a
-      0003A8                        770 00129$:
-                                    771 ;src/main.c:134: if (running && play_length == 0) start_break();
-      0003A8 FAr03r00         [16]  772 	ld	a, (#_running)
-      0003AB B7               [ 4]  773 	or	a, a
-      0003AC 28 0A            [12]  774 	jr	Z, 00131$
-      0003AE 21r01r00         [12]  775 	ld	hl, #_play_length + 1
-      0003B1 3A               [ 8]  776 	ld	a, (hl-)
-      0003B2 B6               [ 8]  777 	or	a, (hl)
-      0003B3 20 03            [12]  778 	jr	NZ, 00131$
-      0003B5 CDr4Ar00         [24]  779 	call	_start_break
-      0003B8                        780 00131$:
-                                    781 ;src/main.c:138: UINT32 now = g_tick;
-      0003B8 21r00r00         [12]  782 	ld	hl, #_g_tick
-      0003BB 54               [ 4]  783 	ld	d, h
-      0003BC 5D               [ 4]  784 	ld	e, l
-      0003BD F8 01            [12]  785 	ldhl	sp,	#1
-      0003BF 1A               [ 8]  786 	ld	a, (de)
-      0003C0 22               [ 8]  787 	ld	(hl+),	a
-      0003C1 13               [ 8]  788 	inc	de
-      0003C2 1A               [ 8]  789 	ld	a, (de)
-      0003C3 22               [ 8]  790 	ld	(hl+),	a
-      0003C4 13               [ 8]  791 	inc	de
-      0003C5 1A               [ 8]  792 	ld	a, (de)
-      0003C6 22               [ 8]  793 	ld	(hl+),	a
-      0003C7 13               [ 8]  794 	inc	de
-      0003C8 1A               [ 8]  795 	ld	a, (de)
-      0003C9 77               [ 8]  796 	ld	(hl), a
-                                    797 ;src/main.c:137: if (running) {
-      0003CA FAr03r00         [16]  798 	ld	a, (#_running)
-      0003CD B7               [ 4]  799 	or	a, a
-      0003CE CArEAr04         [16]  800 	jp	Z, 00142$
-                                    801 ;src/main.c:139: UINT32 dt = now - ck_last;
-      0003D1 F8 01            [12]  802 	ldhl	sp,#1
-      0003D3 2A               [ 8]  803 	ld	a, (hl+)
-      0003D4 5F               [ 4]  804 	ld	e, a
-      0003D5 56               [ 8]  805 	ld	d, (hl)
-      0003D6 7B               [ 4]  806 	ld	a, e
-      0003D7 21r07r00         [12]  807 	ld	hl, #_ck_last
-      0003DA 96               [ 8]  808 	sub	a, (hl)
-      0003DB 23               [ 8]  809 	inc	hl
-      0003DC 5F               [ 4]  810 	ld	e, a
-      0003DD 7A               [ 4]  811 	ld	a, d
-      0003DE 9E               [ 8]  812 	sbc	a, (hl)
-      0003DF F5               [16]  813 	push	af
-      0003E0 F8 08            [12]  814 	ldhl	sp,	#8
-      0003E2 32               [ 8]  815 	ld	(hl-), a
-      0003E3 7B               [ 4]  816 	ld	a, e
-      0003E4 32               [ 8]  817 	ld	(hl-), a
-      0003E5 2B               [ 8]  818 	dec	hl
-      0003E6 2A               [ 8]  819 	ld	a, (hl+)
-      0003E7 5F               [ 4]  820 	ld	e, a
-      0003E8 56               [ 8]  821 	ld	d, (hl)
-      0003E9 21r09r00         [12]  822 	ld	hl, #_ck_last + 2
-      0003EC F1               [12]  823 	pop	af
-      0003ED 7B               [ 4]  824 	ld	a, e
-      0003EE 9E               [ 8]  825 	sbc	a, (hl)
-      0003EF 23               [ 8]  826 	inc	hl
-      0003F0 5F               [ 4]  827 	ld	e, a
-      0003F1 7A               [ 4]  828 	ld	a, d
-      0003F2 9E               [ 8]  829 	sbc	a, (hl)
-      0003F3 F8 08            [12]  830 	ldhl	sp,	#8
-      0003F5 32               [ 8]  831 	ld	(hl-), a
-      0003F6 73               [ 8]  832 	ld	(hl), e
-                                    833 ;src/main.c:140: ck_last = now;
-      0003F7 F8 01            [12]  834 	ldhl	sp,	#1
-      0003F9 54               [ 4]  835 	ld	d, h
-      0003FA 5D               [ 4]  836 	ld	e, l
-      0003FB 21r07r00         [12]  837 	ld	hl, #_ck_last
-      0003FE 1A               [ 8]  838 	ld	a, (de)
-      0003FF 22               [ 8]  839 	ld	(hl+),	a
-      000400 13               [ 8]  840 	inc	de
-      000401 1A               [ 8]  841 	ld	a, (de)
-      000402 22               [ 8]  842 	ld	(hl+),	a
-      000403 13               [ 8]  843 	inc	de
-      000404 1A               [ 8]  844 	ld	a, (de)
-      000405 22               [ 8]  845 	ld	(hl+),	a
-      000406 13               [ 8]  846 	inc	de
-      000407 1A               [ 8]  847 	ld	a, (de)
-      000408 77               [ 8]  848 	ld	(hl), a
-                                    849 ;src/main.c:141: ck_ph += dt;
-      000409 21r0Br00         [12]  850 	ld	hl, #_ck_ph
-      00040C 2A               [ 8]  851 	ld	a, (hl+)
-      00040D 5F               [ 4]  852 	ld	e, a
-      00040E 56               [ 8]  853 	ld	d, (hl)
-      00040F 7B               [ 4]  854 	ld	a, e
-      000410 F8 05            [12]  855 	ldhl	sp,	#5
-      000412 86               [ 8]  856 	add	a, (hl)
-      000413 23               [ 8]  857 	inc	hl
-      000414 5F               [ 4]  858 	ld	e, a
-      000415 7A               [ 4]  859 	ld	a, d
-      000416 8E               [ 8]  860 	adc	a, (hl)
-      000417 F5               [16]  861 	push	af
-      000418 21r0Cr00         [12]  862 	ld	hl, #_ck_ph + 1
-      00041B 32               [ 8]  863 	ld	(hl-), a
-      00041C 73               [ 8]  864 	ld	(hl), e
-      00041D 21r0Dr00         [12]  865 	ld	hl, #_ck_ph + 2
-      000420 2A               [ 8]  866 	ld	a, (hl+)
-      000421 5F               [ 4]  867 	ld	e, a
-      000422 56               [ 8]  868 	ld	d, (hl)
-      000423 F8 09            [12]  869 	ldhl	sp,	#9
-      000425 F1               [12]  870 	pop	af
-      000426 7B               [ 4]  871 	ld	a, e
-      000427 8E               [ 8]  872 	adc	a, (hl)
-      000428 23               [ 8]  873 	inc	hl
-      000429 5F               [ 4]  874 	ld	e, a
-      00042A 7A               [ 4]  875 	ld	a, d
-      00042B 8E               [ 8]  876 	adc	a, (hl)
-      00042C 21r0Er00         [12]  877 	ld	hl, #_ck_ph + 3
-      00042F 32               [ 8]  878 	ld	(hl-), a
-      000430 73               [ 8]  879 	ld	(hl), e
-                                    880 ;src/main.c:142: UINT32 period_ms = 60000UL / ((UINT32)bpm * PPQN[clk_mode]);
-      000431 FAr01r00         [16]  881 	ld	a, (#_bpm)
-      000434 F8 05            [12]  882 	ldhl	sp,	#5
-      000436 77               [ 8]  883 	ld	(hl), a
-      000437 FAr02r00         [16]  884 	ld	a, (#_bpm + 1)
-      00043A F8 06            [12]  885 	ldhl	sp,	#6
-      00043C 22               [ 8]  886 	ld	(hl+), a
-      00043D AF               [ 4]  887 	xor	a, a
-      00043E 22               [ 8]  888 	ld	(hl+), a
-      00043F 77               [ 8]  889 	ld	(hl), a
-      000440 3Er4D            [ 8]  890 	ld	a, #<(_PPQN)
-      000442 21r05r00         [12]  891 	ld	hl, #_clk_mode
-      000445 86               [ 8]  892 	add	a, (hl)
-      000446 4F               [ 4]  893 	ld	c, a
-      000447 3Es00            [ 8]  894 	ld	a, #>(_PPQN)
-      000449 CE 00            [ 8]  895 	adc	a, #0x00
-      00044B 47               [ 4]  896 	ld	b, a
-      00044C 0A               [ 8]  897 	ld	a, (bc)
-      00044D 5F               [ 4]  898 	ld	e, a
-      00044E 16 00            [ 8]  899 	ld	d, #0x00
-      000450 01 00 00         [12]  900 	ld	bc, #0x0000
-      000453 C5               [16]  901 	push	bc
-      000454 D5               [16]  902 	push	de
-      000455 F8 09            [12]  903 	ldhl	sp,	#9
-      000457 2A               [ 8]  904 	ld	a, (hl+)
-      000458 4F               [ 4]  905 	ld	c, a
-      000459 2A               [ 8]  906 	ld	a, (hl+)
-      00045A 47               [ 4]  907 	ld	b, a
-      00045B 2A               [ 8]  908 	ld	a, (hl+)
-      00045C 5F               [ 4]  909 	ld	e, a
-      00045D 56               [ 8]  910 	ld	d, (hl)
-      00045E CDr00r00         [24]  911 	call	__mullong
-      000461 D5               [16]  912 	push	de
-      000462 C5               [16]  913 	push	bc
-      000463 01 60 EA         [12]  914 	ld	bc, #0xea60
-      000466 11 00 00         [12]  915 	ld	de, #0x0000
-      000469 CDr00r00         [24]  916 	call	__divulong
-      00046C F8 05            [12]  917 	ldhl	sp,	#5
-      00046E 79               [ 4]  918 	ld	a, c
-      00046F 22               [ 8]  919 	ld	(hl+), a
-      000470 78               [ 4]  920 	ld	a, b
-      000471 22               [ 8]  921 	ld	(hl+), a
-      000472 7B               [ 4]  922 	ld	a, e
-                                    923 ;src/main.c:143: if (period_ms == 0) period_ms = 1;
-      000473 22               [ 8]  924 	ld	(hl+), a
-      000474 72               [ 8]  925 	ld	(hl), d
-      000475 2B               [ 8]  926 	dec	hl
-      000476 2B               [ 8]  927 	dec	hl
-      000477 B2               [ 4]  928 	or	a, d
-      000478 B6               [ 8]  929 	or	a, (hl)
-      000479 2B               [ 8]  930 	dec	hl
-      00047A B6               [ 8]  931 	or	a, (hl)
-      00047B 20 07            [12]  932 	jr	NZ, 00138$
-      00047D 3E 01            [ 8]  933 	ld	a, #0x01
-      00047F 22               [ 8]  934 	ld	(hl+), a
-      000480 AF               [ 4]  935 	xor	a, a
-      000481 22               [ 8]  936 	ld	(hl+), a
-      000482 22               [ 8]  937 	ld	(hl+), a
-      000483 77               [ 8]  938 	ld	(hl), a
-                                    939 ;src/main.c:144: while (ck_ph >= period_ms) {
-      000484                        940 00138$:
-      000484 11r0Br00         [12]  941 	ld	de, #_ck_ph
-      000487 F8 05            [12]  942 	ldhl	sp,	#5
-      000489 1A               [ 8]  943 	ld	a, (de)
-      00048A 13               [ 8]  944 	inc	de
-      00048B 96               [ 8]  945 	sub	a, (hl)
-      00048C 23               [ 8]  946 	inc	hl
-      00048D 1A               [ 8]  947 	ld	a, (de)
-      00048E 13               [ 8]  948 	inc	de
-      00048F 9E               [ 8]  949 	sbc	a, (hl)
-      000490 23               [ 8]  950 	inc	hl
-      000491 1A               [ 8]  951 	ld	a, (de)
-      000492 13               [ 8]  952 	inc	de
-      000493 9E               [ 8]  953 	sbc	a, (hl)
-      000494 23               [ 8]  954 	inc	hl
-      000495 1A               [ 8]  955 	ld	a, (de)
-      000496 9E               [ 8]  956 	sbc	a, (hl)
-      000497 DArA2r02         [16]  957 	jp	C, 00147$
-                                    958 ;src/main.c:145: ck_ph -= period_ms;
-      00049A 21r0Br00         [12]  959 	ld	hl, #_ck_ph
-      00049D 2A               [ 8]  960 	ld	a, (hl+)
-      00049E 5F               [ 4]  961 	ld	e, a
-      00049F 56               [ 8]  962 	ld	d, (hl)
-      0004A0 7B               [ 4]  963 	ld	a, e
-      0004A1 F8 05            [12]  964 	ldhl	sp,	#5
-      0004A3 96               [ 8]  965 	sub	a, (hl)
-      0004A4 23               [ 8]  966 	inc	hl
-      0004A5 5F               [ 4]  967 	ld	e, a
-      0004A6 7A               [ 4]  968 	ld	a, d
-      0004A7 9E               [ 8]  969 	sbc	a, (hl)
-      0004A8 F5               [16]  970 	push	af
-      0004A9 21r0Cr00         [12]  971 	ld	hl, #_ck_ph + 1
-      0004AC 32               [ 8]  972 	ld	(hl-), a
-      0004AD 73               [ 8]  973 	ld	(hl), e
-      0004AE 21r0Dr00         [12]  974 	ld	hl, #_ck_ph + 2
-      0004B1 2A               [ 8]  975 	ld	a, (hl+)
-      0004B2 5F               [ 4]  976 	ld	e, a
-      0004B3 56               [ 8]  977 	ld	d, (hl)
-      0004B4 F8 09            [12]  978 	ldhl	sp,	#9
-      0004B6 F1               [12]  979 	pop	af
-      0004B7 7B               [ 4]  980 	ld	a, e
-      0004B8 9E               [ 8]  981 	sbc	a, (hl)
-      0004B9 23               [ 8]  982 	inc	hl
-      0004BA 5F               [ 4]  983 	ld	e, a
-      0004BB 7A               [ 4]  984 	ld	a, d
-      0004BC 9E               [ 8]  985 	sbc	a, (hl)
-      0004BD 21r0Er00         [12]  986 	ld	hl, #_ck_ph + 3
-      0004C0 32               [ 8]  987 	ld	(hl-), a
-      0004C1 73               [ 8]  988 	ld	(hl), e
-                                    989 ;src/main.c:146: pulse_count++;
-      0004C2 21r0Fr00         [12]  990 	ld	hl, #_pulse_count
-      0004C5 34               [12]  991 	inc	(hl)
-      0004C6 20 02            [12]  992 	jr	NZ, 00268$
-      0004C8 23               [ 8]  993 	inc	hl
-      0004C9 34               [12]  994 	inc	(hl)
-      0004CA                        995 00268$:
-                                    996 ;src/main.c:147: if (dest) jack_pulse(pulse_count % 16 == 0);
-      0004CA FAr04r00         [16]  997 	ld	a, (#_dest)
-      0004CD B7               [ 4]  998 	or	a, a
-      0004CE 28 15            [12]  999 	jr	Z, 00136$
-      0004D0 FAr0Fr00         [16] 1000 	ld	a, (#_pulse_count)
-      0004D3 E6 0F            [ 8] 1001 	and	a, #0x0f
-      0004D5 4F               [ 4] 1002 	ld	c, a
-      0004D6 06 00            [ 8] 1003 	ld	b, #0x00
-      0004D8 79               [ 4] 1004 	ld	a, c
-      0004D9 B7               [ 4] 1005 	or	a, a
-      0004DA B0               [ 4] 1006 	or	a, b
-      0004DB 3E 01            [ 8] 1007 	ld	a, #0x01
-      0004DD 28 01            [12] 1008 	jr	Z, 00270$
-      0004DF AF               [ 4] 1009 	xor	a, a
-      0004E0                       1010 00270$:
-      0004E0 CDr13r02         [24] 1011 	call	_jack_pulse
-      0004E3 18 9F            [12] 1012 	jr	00138$
-      0004E5                       1013 00136$:
-                                   1014 ;src/main.c:148: else send_edge();
-      0004E5 CDrF6r01         [24] 1015 	call	_send_edge
-      0004E8 18 9A            [12] 1016 	jr	00138$
-      0004EA                       1017 00142$:
-                                   1018 ;src/main.c:151: ck_last = g_tick;
-      0004EA F8 01            [12] 1019 	ldhl	sp,	#1
-      0004EC 54               [ 4] 1020 	ld	d, h
-      0004ED 5D               [ 4] 1021 	ld	e, l
-      0004EE 21r07r00         [12] 1022 	ld	hl, #_ck_last
-      0004F1 1A               [ 8] 1023 	ld	a, (de)
-      0004F2 22               [ 8] 1024 	ld	(hl+),	a
-      0004F3 13               [ 8] 1025 	inc	de
-      0004F4 1A               [ 8] 1026 	ld	a, (de)
-      0004F5 22               [ 8] 1027 	ld	(hl+),	a
-      0004F6 13               [ 8] 1028 	inc	de
-      0004F7 1A               [ 8] 1029 	ld	a, (de)
-      0004F8 22               [ 8] 1030 	ld	(hl+),	a
-      0004F9 13               [ 8] 1031 	inc	de
-      0004FA 1A               [ 8] 1032 	ld	a, (de)
-      0004FB 77               [ 8] 1033 	ld	(hl), a
-                                   1034 ;src/main.c:152: ck_ph = 0;
-      0004FC AF               [ 4] 1035 	xor	a, a
-      0004FD 21r0Br00         [12] 1036 	ld	hl, #_ck_ph
-      000500 22               [ 8] 1037 	ld	(hl+), a
-      000501 22               [ 8] 1038 	ld	(hl+), a
-      000502 22               [ 8] 1039 	ld	(hl+), a
-      000503 77               [ 8] 1040 	ld	(hl), a
-      000504 C3rA2r02         [16] 1041 	jp	00147$
-                                   1042 ;src/main.c:155: }
-      000507 E8 09            [16] 1043 	add	sp, #9
-      000509 C9               [16] 1044 	ret
-                                   1045 	.area _CODE
-                                   1046 	.area _INITIALIZER
-      000000                       1047 __xinit__cur:
-      000000 00                    1048 	.db #0x00	; 0
-      000001                       1049 __xinit__bpm:
-      000001 AF 00                 1050 	.dw #0x00af
-      000003                       1051 __xinit__running:
-      000003 00                    1052 	.db #0x00	; 0
-      000004                       1053 __xinit__dest:
-      000004 00                    1054 	.db #0x00	; 0
-      000005                       1055 __xinit__clk_mode:
-      000005 00                    1056 	.db #0x00	; 0
-      000006                       1057 __xinit__out_state:
-      000006 00                    1058 	.db #0x00	; 0
-      000007                       1059 __xinit__ck_last:
-      000007 00 00 00 00           1060 	.byte #0x00, #0x00, #0x00, #0x00	; 0
-      00000B                       1061 __xinit__ck_ph:
-      00000B 00 00 00 00           1062 	.byte #0x00, #0x00, #0x00, #0x00	; 0
-      00000F                       1063 __xinit__pulse_count:
-      00000F 00 00                 1064 	.dw #0x0000
-                                   1065 	.area _CABS (ABS)
+      0001F5 00                     427 	.db 0x00
+                                    428 ;src/main.c:65: static void send_edge(void) {
+                                    429 ;	---------------------------------
+                                    430 ; Function send_edge
+                                    431 ; ---------------------------------
+      0001F6                        432 _send_edge:
+                                    433 ;src/main.c:66: out_state ^= 1;
+      0001F6 21r06r00         [12]  434 	ld	hl, #_out_state
+      0001F9 7E               [ 8]  435 	ld	a, (hl)
+      0001FA EE 01            [ 8]  436 	xor	a, #0x01
+      0001FC 77               [ 8]  437 	ld	(hl), a
+                                    438 ;src/main.c:67: SER_D = out_state ? 0xFF : 0x00;
+      0001FD 7E               [ 8]  439 	ld	a, (hl)
+      0001FE B7               [ 4]  440 	or	a, a
+      0001FF 3E FF            [ 8]  441 	ld	a, #0xff
+      000201 20 01            [12]  442 	jr	NZ, 00107$
+      000203 AF               [ 4]  443 	xor	a, a
+      000204                        444 00107$:
+      000204 E0 01            [12]  445 	ldh	(#0xff01), a
+                                    446 ;src/main.c:68: SER_C = 0x81;
+      000206 3E 81            [ 8]  447 	ld	a, #0x81
+      000208 E0 02            [12]  448 	ldh	(#0xff02), a
+                                    449 ;src/main.c:69: while (SER_C & 0x80) /* wait */ ;
+      00020A                        450 00101$:
+      00020A F0 02            [12]  451 	ldh	a, (#0xff02)
+      00020C 07               [ 4]  452 	rlca
+      00020D 38 FB            [12]  453 	jr	C, 00101$
+                                    454 ;src/main.c:70: SER_C = 0x00;
+      00020F AF               [ 4]  455 	xor	a, a
+      000210 E0 02            [12]  456 	ldh	(#0xff02), a
+                                    457 ;src/main.c:71: }
+      000212 C9               [16]  458 	ret
+                                    459 ;src/main.c:73: static void jack_pulse(UINT8 accent) {
+                                    460 ;	---------------------------------
+                                    461 ; Function jack_pulse
+                                    462 ; ---------------------------------
+      000213                        463 _jack_pulse:
+                                    464 ;src/main.c:74: if (accent) {
+      000213 B7               [ 4]  465 	or	a, a
+      000214 28 15            [12]  466 	jr	Z, 00102$
+                                    467 ;src/main.c:75: NR10_REG = 0x50;
+      000216 3E 50            [ 8]  468 	ld	a, #0x50
+      000218 E0r00            [12]  469 	ldh	(_NR10_REG + 0), a
+                                    470 ;src/main.c:76: NR11_REG = 0x3F;
+      00021A 3E 3F            [ 8]  471 	ld	a, #0x3f
+      00021C E0r00            [12]  472 	ldh	(_NR11_REG + 0), a
+                                    473 ;src/main.c:77: NR12_REG = 0xF1;
+      00021E 3E F1            [ 8]  474 	ld	a, #0xf1
+      000220 E0r00            [12]  475 	ldh	(_NR12_REG + 0), a
+                                    476 ;src/main.c:78: NR13_REG = 0x11;
+      000222 3E 11            [ 8]  477 	ld	a, #0x11
+      000224 E0r00            [12]  478 	ldh	(_NR13_REG + 0), a
+                                    479 ;src/main.c:79: NR14_REG = 0xC0;
+      000226 3E C0            [ 8]  480 	ld	a, #0xc0
+      000228 E0r00            [12]  481 	ldh	(_NR14_REG + 0), a
+      00022A C9               [16]  482 	ret
+      00022B                        483 00102$:
+                                    484 ;src/main.c:81: NR10_REG = 0x00;
+      00022B AF               [ 4]  485 	xor	a, a
+      00022C E0r00            [12]  486 	ldh	(_NR10_REG + 0), a
+                                    487 ;src/main.c:82: NR21_REG = 0x3F;
+      00022E 3E 3F            [ 8]  488 	ld	a, #0x3f
+      000230 E0r00            [12]  489 	ldh	(_NR21_REG + 0), a
+                                    490 ;src/main.c:83: NR22_REG = 0xF0;
+      000232 3E F0            [ 8]  491 	ld	a, #0xf0
+      000234 E0r00            [12]  492 	ldh	(_NR22_REG + 0), a
+                                    493 ;src/main.c:84: NR23_REG = 0x4A;
+      000236 3E 4A            [ 8]  494 	ld	a, #0x4a
+      000238 E0r00            [12]  495 	ldh	(_NR23_REG + 0), a
+                                    496 ;src/main.c:85: NR24_REG = 0xC0;
+      00023A 3E C0            [ 8]  497 	ld	a, #0xc0
+      00023C E0r00            [12]  498 	ldh	(_NR24_REG + 0), a
+                                    499 ;src/main.c:87: }
+      00023E C9               [16]  500 	ret
+                                    501 ;src/main.c:89: void main(void) {
+                                    502 ;	---------------------------------
+                                    503 ; Function main
+                                    504 ; ---------------------------------
+      00023F                        505 _main::
+      00023F E8 F7            [16]  506 	add	sp, #-9
+                                    507 ;../gbc/gbdk/include/gb/gb.h:743: __asm__("di");
+      000241 F3               [ 4]  508 	di
+                                    509 ;src/main.c:91: NR52_REG = 0x80;
+      000242 3E 80            [ 8]  510 	ld	a, #0x80
+      000244 E0r00            [12]  511 	ldh	(_NR52_REG + 0), a
+                                    512 ;src/main.c:92: NR50_REG = 0x77;
+      000246 3E 77            [ 8]  513 	ld	a, #0x77
+      000248 E0r00            [12]  514 	ldh	(_NR50_REG + 0), a
+                                    515 ;src/main.c:93: NR51_REG = 0xFF;
+      00024A 3E FF            [ 8]  516 	ld	a, #0xff
+      00024C E0r00            [12]  517 	ldh	(_NR51_REG + 0), a
+                                    518 ;src/main.c:94: rTMA = 240;
+      00024E 3E F0            [ 8]  519 	ld	a, #0xf0
+      000250 E0r00            [12]  520 	ldh	(_TMA_REG + 0), a
+                                    521 ;src/main.c:95: rTAC = 0x04;
+      000252 3E 04            [ 8]  522 	ld	a, #0x04
+      000254 E0r00            [12]  523 	ldh	(_TAC_REG + 0), a
+                                    524 ;src/main.c:96: set_interrupts(VBL_IFLAG | TIM_IFLAG);
+      000256 3E 05            [ 8]  525 	ld	a, #0x05
+      000258 F5               [16]  526 	push	af
+      000259 33               [ 8]  527 	inc	sp
+      00025A CDr00r00         [24]  528 	call	_set_interrupts
+      00025D 33               [ 8]  529 	inc	sp
+                                    530 ;src/main.c:97: add_TIM(tim_isr);
+      00025E 11r00r00         [12]  531 	ld	de, #_tim_isr
+      000261 D5               [16]  532 	push	de
+      000262 CDr00r00         [24]  533 	call	_add_TIM
+      000265 E1               [12]  534 	pop	hl
+                                    535 ;src/main.c:98: add_TIM(play_isr);
+      000266 11r00r00         [12]  536 	ld	de, #_play_isr
+      000269 D5               [16]  537 	push	de
+      00026A CDr00r00         [24]  538 	call	_add_TIM
+      00026D 33               [ 8]  539 	inc	sp
+      00026E 33               [ 8]  540 	inc	sp
+                                    541 ;../gbc/gbdk/include/gb/gb.h:727: __asm__("ei");
+      00026F FB               [ 4]  542 	ei
+                                    543 ;src/main.c:101: UINT8 prevkeys = 0xFF;
+      000270 F8 00            [12]  544 	ldhl	sp,	#0
+      000272 36 FF            [12]  545 	ld	(hl), #0xff
+                                    546 ;src/main.c:102: draw_screen();
+      000274 CDrFDr00         [24]  547 	call	_draw_screen
+      000277                        548 00142$:
+                                    549 ;src/main.c:105: UINT8 keys = joypad();
+      000277 CDr00r00         [24]  550 	call	_joypad
+      00027A 4F               [ 4]  551 	ld	c, a
+                                    552 ;src/main.c:106: UINT8 down = keys & ~prevkeys;
+      00027B F8 00            [12]  553 	ldhl	sp,	#0
+      00027D 7E               [ 8]  554 	ld	a, (hl)
+      00027E 2F               [ 4]  555 	cpl
+      00027F A1               [ 4]  556 	and	a, c
+      000280 5F               [ 4]  557 	ld	e, a
+                                    558 ;src/main.c:107: prevkeys = keys;
+      000281 71               [ 8]  559 	ld	(hl), c
+                                    560 ;src/main.c:109: if (down & J_RIGHT) { cur = (cur + 1) % NBREAKS; if (running) start_break(); draw_screen(); }
+      000282 CB 43            [ 8]  561 	bit	0, e
+      000284 28 25            [12]  562 	jr	Z, 00104$
+      000286 21r00r00         [12]  563 	ld	hl, #_cur
+      000289 6E               [ 8]  564 	ld	l, (hl)
+                                    565 ;	spillPairReg hl
+                                    566 ;	spillPairReg hl
+      00028A 26 00            [ 8]  567 	ld	h, #0x00
+                                    568 ;	spillPairReg hl
+                                    569 ;	spillPairReg hl
+      00028C 23               [ 8]  570 	inc	hl
+      00028D 54               [ 4]  571 	ld	d, h
+      00028E D5               [16]  572 	push	de
+      00028F 01 01 00         [12]  573 	ld	bc, #0x0001
+      000292 5D               [ 4]  574 	ld	e, l
+      000293 CDr00r00         [24]  575 	call	__modsint
+      000296 D1               [12]  576 	pop	de
+      000297 21r00r00         [12]  577 	ld	hl, #_cur
+      00029A 71               [ 8]  578 	ld	(hl), c
+      00029B FAr03r00         [16]  579 	ld	a, (#_running)
+      00029E B7               [ 4]  580 	or	a, a
+      00029F 28 05            [12]  581 	jr	Z, 00102$
+      0002A1 D5               [16]  582 	push	de
+      0002A2 CDr4Ar00         [24]  583 	call	_start_break
+      0002A5 D1               [12]  584 	pop	de
+      0002A6                        585 00102$:
+      0002A6 D5               [16]  586 	push	de
+      0002A7 CDrFDr00         [24]  587 	call	_draw_screen
+      0002AA D1               [12]  588 	pop	de
+      0002AB                        589 00104$:
+                                    590 ;src/main.c:110: if (down & J_LEFT)  { cur = (cur + NBREAKS - 1) % NBREAKS; if (running) start_break(); draw_screen(); }
+      0002AB CB 4B            [ 8]  591 	bit	1, e
+      0002AD 28 14            [12]  592 	jr	Z, 00108$
+      0002AF AF               [ 4]  593 	xor	a, a
+                                    594 ;	spillPairReg hl
+                                    595 ;	spillPairReg hl
+      0002B0 EAr00r00         [16]  596 	ld	(_cur), a
+      0002B3 FAr03r00         [16]  597 	ld	a, (#_running)
+      0002B6 B7               [ 4]  598 	or	a, a
+      0002B7 28 05            [12]  599 	jr	Z, 00106$
+      0002B9 D5               [16]  600 	push	de
+      0002BA CDr4Ar00         [24]  601 	call	_start_break
+      0002BD D1               [12]  602 	pop	de
+      0002BE                        603 00106$:
+      0002BE D5               [16]  604 	push	de
+      0002BF CDrFDr00         [24]  605 	call	_draw_screen
+      0002C2 D1               [12]  606 	pop	de
+      0002C3                        607 00108$:
+                                    608 ;src/main.c:111: if (down & J_UP)    { if (bpm < 250) { bpm++; } draw_screen(); }
+      0002C3 CB 53            [ 8]  609 	bit	2, e
+      0002C5 28 16            [12]  610 	jr	Z, 00112$
+      0002C7 21r01r00         [12]  611 	ld	hl, #_bpm
+      0002CA 2A               [ 8]  612 	ld	a, (hl+)
+      0002CB D6 FA            [ 8]  613 	sub	a, #0xfa
+      0002CD 7E               [ 8]  614 	ld	a, (hl)
+      0002CE DE 00            [ 8]  615 	sbc	a, #0x00
+      0002D0 30 06            [12]  616 	jr	NC, 00110$
+      0002D2 2B               [ 8]  617 	dec	hl
+      0002D3 34               [12]  618 	inc	(hl)
+      0002D4 20 02            [12]  619 	jr	NZ, 00249$
+      0002D6 23               [ 8]  620 	inc	hl
+      0002D7 34               [12]  621 	inc	(hl)
+      0002D8                        622 00249$:
+      0002D8                        623 00110$:
+      0002D8 D5               [16]  624 	push	de
+      0002D9 CDrFDr00         [24]  625 	call	_draw_screen
+      0002DC D1               [12]  626 	pop	de
+      0002DD                        627 00112$:
+                                    628 ;src/main.c:112: if (down & J_DOWN)  { if (bpm > 61)  { bpm--; } draw_screen(); }
+      0002DD CB 5B            [ 8]  629 	bit	3, e
+      0002DF 28 1C            [12]  630 	jr	Z, 00116$
+      0002E1 21r01r00         [12]  631 	ld	hl, #_bpm
+      0002E4 3E 3D            [ 8]  632 	ld	a, #0x3d
+      0002E6 96               [ 8]  633 	sub	a, (hl)
+      0002E7 23               [ 8]  634 	inc	hl
+      0002E8 3E 00            [ 8]  635 	ld	a, #0x00
+      0002EA 9E               [ 8]  636 	sbc	a, (hl)
+      0002EB 30 0B            [12]  637 	jr	NC, 00114$
+      0002ED 21r01r00         [12]  638 	ld	hl, #_bpm
+      0002F0 7E               [ 8]  639 	ld	a, (hl)
+      0002F1 C6 FF            [ 8]  640 	add	a, #0xff
+      0002F3 22               [ 8]  641 	ld	(hl+), a
+      0002F4 7E               [ 8]  642 	ld	a, (hl)
+      0002F5 CE FF            [ 8]  643 	adc	a, #0xff
+      0002F7 77               [ 8]  644 	ld	(hl), a
+      0002F8                        645 00114$:
+      0002F8 D5               [16]  646 	push	de
+      0002F9 CDrFDr00         [24]  647 	call	_draw_screen
+      0002FC D1               [12]  648 	pop	de
+      0002FD                        649 00116$:
+                                    650 ;src/main.c:113: if (down & (J_A | J_START)) {
+      0002FD 7B               [ 4]  651 	ld	a, e
+      0002FE E6 90            [ 8]  652 	and	a, #0x90
+      000300 28 28            [12]  653 	jr	Z, 00120$
+                                    654 ;src/main.c:114: running = !running;
+      000302 21r03r00         [12]  655 	ld	hl, #_running
+      000305 7E               [ 8]  656 	ld	a, (hl)
+      000306 D6 01            [ 8]  657 	sub	a,#0x01
+      000308 3E 00            [ 8]  658 	ld	a, #0x00
+      00030A 17               [ 4]  659 	rla
+      00030B 77               [ 8]  660 	ld	(hl), a
+                                    661 ;src/main.c:115: pulse_count = 0;
+      00030C AF               [ 4]  662 	xor	a, a
+      00030D 21r0Fr00         [12]  663 	ld	hl, #_pulse_count
+      000310 22               [ 8]  664 	ld	(hl+), a
+      000311 77               [ 8]  665 	ld	(hl), a
+                                    666 ;src/main.c:116: ck_ph = 0;
+      000312 AF               [ 4]  667 	xor	a, a
+      000313 21r0Br00         [12]  668 	ld	hl, #_ck_ph
+      000316 22               [ 8]  669 	ld	(hl+), a
+      000317 22               [ 8]  670 	ld	(hl+), a
+      000318 22               [ 8]  671 	ld	(hl+), a
+      000319 77               [ 8]  672 	ld	(hl), a
+                                    673 ;src/main.c:117: if (running) start_break();
+      00031A FAr03r00         [16]  674 	ld	a, (#_running)
+      00031D B7               [ 4]  675 	or	a, a
+      00031E 28 05            [12]  676 	jr	Z, 00118$
+      000320 D5               [16]  677 	push	de
+      000321 CDr4Ar00         [24]  678 	call	_start_break
+      000324 D1               [12]  679 	pop	de
+      000325                        680 00118$:
+                                    681 ;src/main.c:118: draw_screen();
+      000325 D5               [16]  682 	push	de
+      000326 CDrFDr00         [24]  683 	call	_draw_screen
+      000329 D1               [12]  684 	pop	de
+      00032A                        685 00120$:
+                                    686 ;src/main.c:120: if (down & J_B) { clk_mode = (clk_mode + 1) % 3; draw_screen(); }
+      00032A CB 6B            [ 8]  687 	bit	5, e
+      00032C 28 1A            [12]  688 	jr	Z, 00122$
+      00032E 21r05r00         [12]  689 	ld	hl, #_clk_mode
+      000331 6E               [ 8]  690 	ld	l, (hl)
+                                    691 ;	spillPairReg hl
+                                    692 ;	spillPairReg hl
+      000332 26 00            [ 8]  693 	ld	h, #0x00
+                                    694 ;	spillPairReg hl
+                                    695 ;	spillPairReg hl
+      000334 23               [ 8]  696 	inc	hl
+      000335 54               [ 4]  697 	ld	d, h
+      000336 D5               [16]  698 	push	de
+      000337 01 03 00         [12]  699 	ld	bc, #0x0003
+      00033A 5D               [ 4]  700 	ld	e, l
+      00033B CDr00r00         [24]  701 	call	__modsint
+      00033E D1               [12]  702 	pop	de
+      00033F 21r05r00         [12]  703 	ld	hl, #_clk_mode
+      000342 71               [ 8]  704 	ld	(hl), c
+      000343 D5               [16]  705 	push	de
+      000344 CDrFDr00         [24]  706 	call	_draw_screen
+      000347 D1               [12]  707 	pop	de
+      000348                        708 00122$:
+                                    709 ;src/main.c:121: if (down & J_SELECT) { dest = !dest; draw_screen(); }
+      000348 CB 73            [ 8]  710 	bit	6, e
+      00034A 28 0D            [12]  711 	jr	Z, 00124$
+      00034C 21r04r00         [12]  712 	ld	hl, #_dest
+      00034F 7E               [ 8]  713 	ld	a, (hl)
+      000350 D6 01            [ 8]  714 	sub	a,#0x01
+      000352 3E 00            [ 8]  715 	ld	a, #0x00
+      000354 17               [ 4]  716 	rla
+      000355 77               [ 8]  717 	ld	(hl), a
+      000356 CDrFDr00         [24]  718 	call	_draw_screen
+      000359                        719 00124$:
+                                    720 ;src/main.c:124: if (running && play_length == 0) start_break();
+      000359 FAr03r00         [16]  721 	ld	a, (#_running)
+      00035C B7               [ 4]  722 	or	a, a
+      00035D 28 0A            [12]  723 	jr	Z, 00126$
+      00035F 21r01r00         [12]  724 	ld	hl, #_play_length + 1
+      000362 3A               [ 8]  725 	ld	a, (hl-)
+      000363 B6               [ 8]  726 	or	a, (hl)
+      000364 20 03            [12]  727 	jr	NZ, 00126$
+      000366 CDr4Ar00         [24]  728 	call	_start_break
+      000369                        729 00126$:
+                                    730 ;src/main.c:128: UINT32 now = g_tick;
+      000369 21r00r00         [12]  731 	ld	hl, #_g_tick
+      00036C 54               [ 4]  732 	ld	d, h
+      00036D 5D               [ 4]  733 	ld	e, l
+      00036E F8 01            [12]  734 	ldhl	sp,	#1
+      000370 1A               [ 8]  735 	ld	a, (de)
+      000371 22               [ 8]  736 	ld	(hl+),	a
+      000372 13               [ 8]  737 	inc	de
+      000373 1A               [ 8]  738 	ld	a, (de)
+      000374 22               [ 8]  739 	ld	(hl+),	a
+      000375 13               [ 8]  740 	inc	de
+      000376 1A               [ 8]  741 	ld	a, (de)
+      000377 22               [ 8]  742 	ld	(hl+),	a
+      000378 13               [ 8]  743 	inc	de
+      000379 1A               [ 8]  744 	ld	a, (de)
+      00037A 77               [ 8]  745 	ld	(hl), a
+                                    746 ;src/main.c:127: if (running) {
+      00037B FAr03r00         [16]  747 	ld	a, (#_running)
+      00037E B7               [ 4]  748 	or	a, a
+      00037F CArC0r04         [16]  749 	jp	Z, 00137$
+                                    750 ;src/main.c:129: UINT32 dt = now - ck_last;
+      000382 F8 01            [12]  751 	ldhl	sp,#1
+      000384 2A               [ 8]  752 	ld	a, (hl+)
+      000385 5F               [ 4]  753 	ld	e, a
+      000386 56               [ 8]  754 	ld	d, (hl)
+      000387 7B               [ 4]  755 	ld	a, e
+      000388 21r07r00         [12]  756 	ld	hl, #_ck_last
+      00038B 96               [ 8]  757 	sub	a, (hl)
+      00038C 23               [ 8]  758 	inc	hl
+      00038D 5F               [ 4]  759 	ld	e, a
+      00038E 7A               [ 4]  760 	ld	a, d
+      00038F 9E               [ 8]  761 	sbc	a, (hl)
+      000390 F5               [16]  762 	push	af
+      000391 F8 08            [12]  763 	ldhl	sp,	#8
+      000393 32               [ 8]  764 	ld	(hl-), a
+      000394 7B               [ 4]  765 	ld	a, e
+      000395 32               [ 8]  766 	ld	(hl-), a
+      000396 2B               [ 8]  767 	dec	hl
+      000397 2A               [ 8]  768 	ld	a, (hl+)
+      000398 5F               [ 4]  769 	ld	e, a
+      000399 56               [ 8]  770 	ld	d, (hl)
+      00039A 21r09r00         [12]  771 	ld	hl, #_ck_last + 2
+      00039D F1               [12]  772 	pop	af
+      00039E 7B               [ 4]  773 	ld	a, e
+      00039F 9E               [ 8]  774 	sbc	a, (hl)
+      0003A0 23               [ 8]  775 	inc	hl
+      0003A1 5F               [ 4]  776 	ld	e, a
+      0003A2 7A               [ 4]  777 	ld	a, d
+      0003A3 9E               [ 8]  778 	sbc	a, (hl)
+      0003A4 F8 08            [12]  779 	ldhl	sp,	#8
+      0003A6 32               [ 8]  780 	ld	(hl-), a
+      0003A7 7B               [ 4]  781 	ld	a, e
+      0003A8 32               [ 8]  782 	ld	(hl-), a
+      0003A9 2B               [ 8]  783 	dec	hl
+      0003AA 2A               [ 8]  784 	ld	a, (hl+)
+      0003AB 4F               [ 4]  785 	ld	c, a
+      0003AC 2A               [ 8]  786 	ld	a, (hl+)
+      0003AD 47               [ 4]  787 	ld	b, a
+      0003AE 2A               [ 8]  788 	ld	a, (hl+)
+      0003AF 5F               [ 4]  789 	ld	e, a
+      0003B0 56               [ 8]  790 	ld	d, (hl)
+                                    791 ;src/main.c:130: ck_last = now;
+      0003B1 F8 01            [12]  792 	ldhl	sp,	#1
+      0003B3 7E               [ 8]  793 	ld	a, (hl)
+      0003B4 EAr07r00         [16]  794 	ld	(#_ck_last),a
+      0003B7 F8 02            [12]  795 	ldhl	sp,	#2
+      0003B9 7E               [ 8]  796 	ld	a, (hl)
+      0003BA EAr08r00         [16]  797 	ld	(#_ck_last + 1),a
+      0003BD F8 03            [12]  798 	ldhl	sp,	#3
+      0003BF 7E               [ 8]  799 	ld	a, (hl)
+      0003C0 EAr09r00         [16]  800 	ld	(#_ck_last + 2),a
+      0003C3 F8 04            [12]  801 	ldhl	sp,	#4
+      0003C5 7E               [ 8]  802 	ld	a, (hl)
+      0003C6 EAr0Ar00         [16]  803 	ld	(#_ck_last + 3),a
+                                    804 ;src/main.c:131: ck_ph += dt * 64;
+      0003C9 3E 06            [ 8]  805 	ld	a, #0x06
+      0003CB                        806 00254$:
+      0003CB CB 21            [ 8]  807 	sla	c
+      0003CD CB 10            [ 8]  808 	rl	b
+      0003CF CB 13            [ 8]  809 	rl	e
+      0003D1 CB 12            [ 8]  810 	rl	d
+      0003D3 3D               [ 4]  811 	dec	a
+      0003D4 20 F5            [12]  812 	jr	NZ,00254$
+      0003D6 F8 05            [12]  813 	ldhl	sp,	#5
+      0003D8 79               [ 4]  814 	ld	a, c
+      0003D9 22               [ 8]  815 	ld	(hl+), a
+      0003DA 78               [ 4]  816 	ld	a, b
+      0003DB 22               [ 8]  817 	ld	(hl+), a
+      0003DC 7B               [ 4]  818 	ld	a, e
+      0003DD 22               [ 8]  819 	ld	(hl+), a
+      0003DE 72               [ 8]  820 	ld	(hl), d
+      0003DF 21r0Br00         [12]  821 	ld	hl, #_ck_ph
+      0003E2 2A               [ 8]  822 	ld	a, (hl+)
+      0003E3 5F               [ 4]  823 	ld	e, a
+      0003E4 56               [ 8]  824 	ld	d, (hl)
+      0003E5 7B               [ 4]  825 	ld	a, e
+      0003E6 F8 05            [12]  826 	ldhl	sp,	#5
+      0003E8 86               [ 8]  827 	add	a, (hl)
+      0003E9 23               [ 8]  828 	inc	hl
+      0003EA 5F               [ 4]  829 	ld	e, a
+      0003EB 7A               [ 4]  830 	ld	a, d
+      0003EC 8E               [ 8]  831 	adc	a, (hl)
+      0003ED F5               [16]  832 	push	af
+      0003EE 21r0Cr00         [12]  833 	ld	hl, #_ck_ph + 1
+      0003F1 32               [ 8]  834 	ld	(hl-), a
+      0003F2 73               [ 8]  835 	ld	(hl), e
+      0003F3 21r0Dr00         [12]  836 	ld	hl, #_ck_ph + 2
+      0003F6 2A               [ 8]  837 	ld	a, (hl+)
+      0003F7 5F               [ 4]  838 	ld	e, a
+      0003F8 56               [ 8]  839 	ld	d, (hl)
+      0003F9 F8 09            [12]  840 	ldhl	sp,	#9
+      0003FB F1               [12]  841 	pop	af
+      0003FC 7B               [ 4]  842 	ld	a, e
+      0003FD 8E               [ 8]  843 	adc	a, (hl)
+      0003FE 23               [ 8]  844 	inc	hl
+      0003FF 5F               [ 4]  845 	ld	e, a
+      000400 7A               [ 4]  846 	ld	a, d
+      000401 8E               [ 8]  847 	adc	a, (hl)
+      000402 21r0Er00         [12]  848 	ld	hl, #_ck_ph + 3
+      000405 32               [ 8]  849 	ld	(hl-), a
+      000406 73               [ 8]  850 	ld	(hl), e
+                                    851 ;src/main.c:132: UINT32 period = (256UL*60UL*64UL) / ((UINT32)bpm * PPQN[clk_mode]);
+      000407 FAr01r00         [16]  852 	ld	a, (#_bpm)
+      00040A F8 05            [12]  853 	ldhl	sp,	#5
+      00040C 77               [ 8]  854 	ld	(hl), a
+      00040D FAr02r00         [16]  855 	ld	a, (#_bpm + 1)
+      000410 F8 06            [12]  856 	ldhl	sp,	#6
+      000412 22               [ 8]  857 	ld	(hl+), a
+      000413 AF               [ 4]  858 	xor	a, a
+      000414 22               [ 8]  859 	ld	(hl+), a
+      000415 77               [ 8]  860 	ld	(hl), a
+      000416 3Er4D            [ 8]  861 	ld	a, #<(_PPQN)
+      000418 21r05r00         [12]  862 	ld	hl, #_clk_mode
+      00041B 86               [ 8]  863 	add	a, (hl)
+      00041C 4F               [ 4]  864 	ld	c, a
+      00041D 3Es00            [ 8]  865 	ld	a, #>(_PPQN)
+      00041F CE 00            [ 8]  866 	adc	a, #0x00
+      000421 47               [ 4]  867 	ld	b, a
+      000422 0A               [ 8]  868 	ld	a, (bc)
+      000423 5F               [ 4]  869 	ld	e, a
+      000424 16 00            [ 8]  870 	ld	d, #0x00
+      000426 01 00 00         [12]  871 	ld	bc, #0x0000
+      000429 C5               [16]  872 	push	bc
+      00042A D5               [16]  873 	push	de
+      00042B F8 09            [12]  874 	ldhl	sp,	#9
+      00042D 2A               [ 8]  875 	ld	a, (hl+)
+      00042E 4F               [ 4]  876 	ld	c, a
+      00042F 2A               [ 8]  877 	ld	a, (hl+)
+      000430 47               [ 4]  878 	ld	b, a
+      000431 2A               [ 8]  879 	ld	a, (hl+)
+      000432 5F               [ 4]  880 	ld	e, a
+      000433 56               [ 8]  881 	ld	d, (hl)
+      000434 CDr00r00         [24]  882 	call	__mullong
+      000437 D5               [16]  883 	push	de
+      000438 C5               [16]  884 	push	bc
+      000439 01 00 00         [12]  885 	ld	bc, #0x0000
+      00043C 11 0F 00         [12]  886 	ld	de, #0x000f
+      00043F CDr00r00         [24]  887 	call	__divulong
+      000442 F8 05            [12]  888 	ldhl	sp,	#5
+      000444 79               [ 4]  889 	ld	a, c
+      000445 22               [ 8]  890 	ld	(hl+), a
+      000446 78               [ 4]  891 	ld	a, b
+      000447 22               [ 8]  892 	ld	(hl+), a
+      000448 7B               [ 4]  893 	ld	a, e
+                                    894 ;src/main.c:133: if (period == 0) period = 1;
+      000449 22               [ 8]  895 	ld	(hl+), a
+      00044A 72               [ 8]  896 	ld	(hl), d
+      00044B 2B               [ 8]  897 	dec	hl
+      00044C 2B               [ 8]  898 	dec	hl
+      00044D B2               [ 4]  899 	or	a, d
+      00044E B6               [ 8]  900 	or	a, (hl)
+      00044F 2B               [ 8]  901 	dec	hl
+      000450 B6               [ 8]  902 	or	a, (hl)
+      000451 20 07            [12]  903 	jr	NZ, 00133$
+      000453 3E 01            [ 8]  904 	ld	a, #0x01
+      000455 22               [ 8]  905 	ld	(hl+), a
+      000456 AF               [ 4]  906 	xor	a, a
+      000457 22               [ 8]  907 	ld	(hl+), a
+      000458 22               [ 8]  908 	ld	(hl+), a
+      000459 77               [ 8]  909 	ld	(hl), a
+                                    910 ;src/main.c:134: while (ck_ph >= period) {
+      00045A                        911 00133$:
+      00045A 11r0Br00         [12]  912 	ld	de, #_ck_ph
+      00045D F8 05            [12]  913 	ldhl	sp,	#5
+      00045F 1A               [ 8]  914 	ld	a, (de)
+      000460 13               [ 8]  915 	inc	de
+      000461 96               [ 8]  916 	sub	a, (hl)
+      000462 23               [ 8]  917 	inc	hl
+      000463 1A               [ 8]  918 	ld	a, (de)
+      000464 13               [ 8]  919 	inc	de
+      000465 9E               [ 8]  920 	sbc	a, (hl)
+      000466 23               [ 8]  921 	inc	hl
+      000467 1A               [ 8]  922 	ld	a, (de)
+      000468 13               [ 8]  923 	inc	de
+      000469 9E               [ 8]  924 	sbc	a, (hl)
+      00046A 23               [ 8]  925 	inc	hl
+      00046B 1A               [ 8]  926 	ld	a, (de)
+      00046C 9E               [ 8]  927 	sbc	a, (hl)
+      00046D DAr77r02         [16]  928 	jp	C, 00142$
+                                    929 ;src/main.c:135: ck_ph -= period;
+      000470 21r0Br00         [12]  930 	ld	hl, #_ck_ph
+      000473 2A               [ 8]  931 	ld	a, (hl+)
+      000474 5F               [ 4]  932 	ld	e, a
+      000475 56               [ 8]  933 	ld	d, (hl)
+      000476 7B               [ 4]  934 	ld	a, e
+      000477 F8 05            [12]  935 	ldhl	sp,	#5
+      000479 96               [ 8]  936 	sub	a, (hl)
+      00047A 23               [ 8]  937 	inc	hl
+      00047B 5F               [ 4]  938 	ld	e, a
+      00047C 7A               [ 4]  939 	ld	a, d
+      00047D 9E               [ 8]  940 	sbc	a, (hl)
+      00047E F5               [16]  941 	push	af
+      00047F 21r0Cr00         [12]  942 	ld	hl, #_ck_ph + 1
+      000482 32               [ 8]  943 	ld	(hl-), a
+      000483 73               [ 8]  944 	ld	(hl), e
+      000484 21r0Dr00         [12]  945 	ld	hl, #_ck_ph + 2
+      000487 2A               [ 8]  946 	ld	a, (hl+)
+      000488 5F               [ 4]  947 	ld	e, a
+      000489 56               [ 8]  948 	ld	d, (hl)
+      00048A F8 09            [12]  949 	ldhl	sp,	#9
+      00048C F1               [12]  950 	pop	af
+      00048D 7B               [ 4]  951 	ld	a, e
+      00048E 9E               [ 8]  952 	sbc	a, (hl)
+      00048F 23               [ 8]  953 	inc	hl
+      000490 5F               [ 4]  954 	ld	e, a
+      000491 7A               [ 4]  955 	ld	a, d
+      000492 9E               [ 8]  956 	sbc	a, (hl)
+      000493 21r0Er00         [12]  957 	ld	hl, #_ck_ph + 3
+      000496 32               [ 8]  958 	ld	(hl-), a
+      000497 73               [ 8]  959 	ld	(hl), e
+                                    960 ;src/main.c:136: pulse_count++;
+      000498 21r0Fr00         [12]  961 	ld	hl, #_pulse_count
+      00049B 34               [12]  962 	inc	(hl)
+      00049C 20 02            [12]  963 	jr	NZ, 00256$
+      00049E 23               [ 8]  964 	inc	hl
+      00049F 34               [12]  965 	inc	(hl)
+      0004A0                        966 00256$:
+                                    967 ;src/main.c:137: if (dest) jack_pulse(pulse_count % 16 == 0);
+      0004A0 FAr04r00         [16]  968 	ld	a, (#_dest)
+      0004A3 B7               [ 4]  969 	or	a, a
+      0004A4 28 15            [12]  970 	jr	Z, 00131$
+      0004A6 FAr0Fr00         [16]  971 	ld	a, (#_pulse_count)
+      0004A9 E6 0F            [ 8]  972 	and	a, #0x0f
+      0004AB 4F               [ 4]  973 	ld	c, a
+      0004AC 06 00            [ 8]  974 	ld	b, #0x00
+      0004AE 79               [ 4]  975 	ld	a, c
+      0004AF B7               [ 4]  976 	or	a, a
+      0004B0 B0               [ 4]  977 	or	a, b
+      0004B1 3E 01            [ 8]  978 	ld	a, #0x01
+      0004B3 28 01            [12]  979 	jr	Z, 00258$
+      0004B5 AF               [ 4]  980 	xor	a, a
+      0004B6                        981 00258$:
+      0004B6 CDr13r02         [24]  982 	call	_jack_pulse
+      0004B9 18 9F            [12]  983 	jr	00133$
+      0004BB                        984 00131$:
+                                    985 ;src/main.c:138: else send_edge();
+      0004BB CDrF6r01         [24]  986 	call	_send_edge
+      0004BE 18 9A            [12]  987 	jr	00133$
+      0004C0                        988 00137$:
+                                    989 ;src/main.c:141: ck_last = g_tick;
+      0004C0 F8 01            [12]  990 	ldhl	sp,	#1
+      0004C2 54               [ 4]  991 	ld	d, h
+      0004C3 5D               [ 4]  992 	ld	e, l
+      0004C4 21r07r00         [12]  993 	ld	hl, #_ck_last
+      0004C7 1A               [ 8]  994 	ld	a, (de)
+      0004C8 22               [ 8]  995 	ld	(hl+),	a
+      0004C9 13               [ 8]  996 	inc	de
+      0004CA 1A               [ 8]  997 	ld	a, (de)
+      0004CB 22               [ 8]  998 	ld	(hl+),	a
+      0004CC 13               [ 8]  999 	inc	de
+      0004CD 1A               [ 8] 1000 	ld	a, (de)
+      0004CE 22               [ 8] 1001 	ld	(hl+),	a
+      0004CF 13               [ 8] 1002 	inc	de
+      0004D0 1A               [ 8] 1003 	ld	a, (de)
+      0004D1 77               [ 8] 1004 	ld	(hl), a
+                                   1005 ;src/main.c:142: ck_ph = 0;
+      0004D2 AF               [ 4] 1006 	xor	a, a
+      0004D3 21r0Br00         [12] 1007 	ld	hl, #_ck_ph
+      0004D6 22               [ 8] 1008 	ld	(hl+), a
+      0004D7 22               [ 8] 1009 	ld	(hl+), a
+      0004D8 22               [ 8] 1010 	ld	(hl+), a
+      0004D9 77               [ 8] 1011 	ld	(hl), a
+      0004DA C3r77r02         [16] 1012 	jp	00142$
+                                   1013 ;src/main.c:145: }
+      0004DD E8 09            [16] 1014 	add	sp, #9
+      0004DF C9               [16] 1015 	ret
+                                   1016 	.area _CODE
+                                   1017 	.area _INITIALIZER
+      000000                       1018 __xinit__cur:
+      000000 00                    1019 	.db #0x00	; 0
+      000001                       1020 __xinit__bpm:
+      000001 AF 00                 1021 	.dw #0x00af
+      000003                       1022 __xinit__running:
+      000003 00                    1023 	.db #0x00	; 0
+      000004                       1024 __xinit__dest:
+      000004 00                    1025 	.db #0x00	; 0
+      000005                       1026 __xinit__clk_mode:
+      000005 00                    1027 	.db #0x00	; 0
+      000006                       1028 __xinit__out_state:
+      000006 00                    1029 	.db #0x00	; 0
+      000007                       1030 __xinit__ck_last:
+      000007 00 00 00 00           1031 	.byte #0x00, #0x00, #0x00, #0x00	; 0
+      00000B                       1032 __xinit__ck_ph:
+      00000B 00 00 00 00           1033 	.byte #0x00, #0x00, #0x00, #0x00	; 0
+      00000F                       1034 __xinit__pulse_count:
+      00000F 00 00                 1035 	.dw #0x0000
+                                   1036 	.area _CABS (ABS)

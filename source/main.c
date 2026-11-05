@@ -13,9 +13,12 @@
 
 static u16* buf[NBUF];
 static ndspWaveBuf wb[NBUF];
+static int16_t scratchL[FRAMES], scratchR[FRAMES];
 
 // ---- NDSP streaming -------------------------------------------------------
-static void audio_init(void) {
+static bool audio_init(void) {
+	if (!ndspInit()) return false;      // audio unavailable (e.g. no services)
+
 	ndspSetOutputMode(NDSP_OUTPUT_STEREO);
 	ndspChnReset(0);
 	ndspChnSetFormat(0, NDSP_FORMAT_STEREO_PCM16);
@@ -25,6 +28,7 @@ static void audio_init(void) {
 		float mix[12] = { 1.0f, 1.0f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 		ndspChnSetMix(0, mix);
 	}
+	ndspChnSetPaused(0, false);
 
 	for (int i = 0; i < NBUF; i++) {
 		buf[i] = (u16*)linearAlloc(FRAMES * 2 * sizeof(u16));
@@ -34,12 +38,19 @@ static void audio_init(void) {
 		wb[i].status = NDSP_WBUF_FREE;
 		ndspChnWaveBufAdd(0, &wb[i]);
 	}
+	return true;
 }
 
 static void audio_refill(Engine* e) {
 	for (int i = 0; i < NBUF; i++) {
 		if (wb[i].status == NDSP_WBUF_DONE) {
-			eng_render(e, (int16_t*)buf[i], (int16_t*)buf[i] + FRAMES, FRAMES);
+			// eng_render produces planar L/R; NDSP stereo wants interleaved.
+			eng_render(e, scratchL, scratchR, FRAMES);
+			int16_t* dst = (int16_t*)buf[i];
+			for (int f = 0; f < FRAMES; f++) {
+				dst[2 * f] = scratchL[f];
+				dst[2 * f + 1] = scratchR[f];
+			}
 			wb[i].status = NDSP_WBUF_QUEUED;
 			ndspChnWaveBufAdd(0, &wb[i]);
 		}
@@ -55,12 +66,14 @@ static void audio_exit(void) {
 }
 
 // ---- startup hooks (called by libctru) -----------------------------------
+static bool g_audio_ok;
+
 void __appInit(void) {
 	srvInit();
 	aptInit();
 	hidInit();
 	gfxInitDefault();
-	ndspInit();
+	g_audio_ok = audio_init();
 }
 
 void __appExit(void) {
@@ -86,7 +99,7 @@ static void blit_canvas(const u16* src, int sw, int sh, u16* dst, int dstride) {
 int main(void) {
 	App app;
 	app_init(&app, SR);
-	audio_init();
+	if (!g_audio_ok) audio_init();   // retry once after appInit
 
 	u16* canvasTop = (u16*)linearAlloc(400 * 240 * sizeof(u16));
 	u16* canvasBot = (u16*)linearAlloc(320 * 240 * sizeof(u16));

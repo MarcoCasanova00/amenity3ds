@@ -12,11 +12,13 @@
 
 #define REG_SOUNDCNT_X (*(volatile uint16_t*)0x04000084)
 #define REG_SOUNDCNT_H (*(volatile uint16_t*)0x04000082)
+#define REG_SOUNDCNT_L (*(volatile uint16_t*)0x04000080)
+#define REG_SOUNDBIAS  (*(volatile uint16_t*)0x04000088)
 #define REG_FIFO_A     (*(volatile uint32_t*)0x040000A0)
 #define REG_FIFO_B     (*(volatile uint32_t*)0x040000A4)
 
 // PSG channels 1 & 4
-#define REG_NR10 (*(volatile uint16_t*)0x04000060)
+#define REG_NR10 (*(volatile uint8_t*)0x04000060)
 #define REG_NR11 (*(volatile uint8_t*)0x04000062)
 #define REG_NR12 (*(volatile uint8_t*)0x04000063)
 #define REG_NR13 (*(volatile uint8_t*)0x04000064)
@@ -51,8 +53,9 @@
 #define BG_PALETTE ((volatile uint16_t*)0x05000000)
 #define REG_IME     (*(volatile uint16_t*)0x04000208)
 #define REG_IE      (*(volatile uint16_t*)0x04000200)
-#define REG_IF      (*(volatile uint16_t*)0x04000210)
-#define IE_TIMER0   0x0001
+#define REG_IF      (*(volatile uint16_t*)0x04000202)
+#define IE_TIMER0   0x0008
+#define IE_TIMER1   0x0010
 
 // keys (bit set = not pressed)
 #define KEY_A      0x0001

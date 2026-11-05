@@ -86,14 +86,6 @@ static void jack_pulse(UINT8 accent) {
 	}
 }
 
-static void set_bpm_tma(void) {
-	// Map BPM 61..250 -> TMA 240..144 (lower counter = faster/higher).
-	UINT8 tma = 246 - (UINT8)(((bpm - 61) * 25u) / 100u);
-	if (tma > 246) tma = 246;
-	if (tma < 199) tma = 199;
-	__critical { rTMA = tma; }
-}
-
 void main(void) {
 	disable_interrupts();
 	NR52_REG = 0x80;
@@ -103,6 +95,7 @@ void main(void) {
 	rTAC = 0x04;
 	set_interrupts(VBL_IFLAG | TIM_IFLAG);
 	add_TIM(tim_isr);
+	add_TIM(play_isr);
 	enable_interrupts();
 
 	UINT8 prevkeys = 0xFF;
@@ -115,8 +108,8 @@ void main(void) {
 
 		if (down & J_RIGHT) { cur = (cur + 1) % NBREAKS; if (running) start_break(); draw_screen(); }
 		if (down & J_LEFT)  { cur = (cur + NBREAKS - 1) % NBREAKS; if (running) start_break(); draw_screen(); }
-		if (down & J_UP)    { if (bpm < 250) { bpm++; set_bpm_tma(); } draw_screen(); }
-		if (down & J_DOWN)  { if (bpm > 61)  { bpm--; set_bpm_tma(); } draw_screen(); }
+		if (down & J_UP)    { if (bpm < 250) { bpm++; } draw_screen(); }
+		if (down & J_DOWN)  { if (bpm > 61)  { bpm--; } draw_screen(); }
 		if (down & (J_A | J_START)) {
 			running = !running;
 			pulse_count = 0;
@@ -126,23 +119,20 @@ void main(void) {
 		}
 		if (down & J_B) { clk_mode = (clk_mode + 1) % 3; draw_screen(); }
 		if (down & J_SELECT) { dest = !dest; draw_screen(); }
-		if (down & J_LEFT) { /* metronome toggle (channel 1) via vol on/off */
-			if (NR12_REG == 0x00) NR12_REG = 0xF1; else NR12_REG = 0x00;
-		}
 
 		// restart loop when sample ends
 		if (running && play_length == 0) start_break();
 
-		// clock pulses
+		// clock pulses; g_tick runs at 256 Hz, so phase uses 1/64-tick units
 		if (running) {
 			UINT32 now = g_tick;
 			UINT32 dt = now - ck_last;
 			ck_last = now;
-			ck_ph += dt;
-			UINT32 period_ms = 60000UL / ((UINT32)bpm * PPQN[clk_mode]);
-			if (period_ms == 0) period_ms = 1;
-			while (ck_ph >= period_ms) {
-				ck_ph -= period_ms;
+			ck_ph += dt * 64;
+			UINT32 period = (256UL*60UL*64UL) / ((UINT32)bpm * PPQN[clk_mode]);
+			if (period == 0) period = 1;
+			while (ck_ph >= period) {
+				ck_ph -= period;
 				pulse_count++;
 				if (dest) jack_pulse(pulse_count % 16 == 0);
 				else send_edge();

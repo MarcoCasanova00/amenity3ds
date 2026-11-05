@@ -124,7 +124,7 @@
       00004B E0r00            [12]   76 	ldh	(_NR30_REG),a
       00004D 3E FE            [ 8]   77 	ld	a, #0xFE ; length of wave
       00004F E0r00            [12]   78 	ldh	(_NR31_REG),a
-      000051 3E 10            [ 8]   79 	ld	a, #0x10 ; volume (100%)
+      000051 3E 20            [ 8]   79 	ld	a, #0x20 ; volume (100%, NR32 bit5)
       000053 E0r00            [12]   80 	ldh	(_NR32_REG),a
       000055 AF               [ 4]   81 	xor	a ; low freq bits are zero
       000056 E0r00            [12]   82 	ldh	(_NR33_REG),a

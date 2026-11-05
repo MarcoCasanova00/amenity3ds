@@ -29,7 +29,7 @@ OBJS := build/crt0.o \
 BANK_H := source/break_bank.h
 BANK_WAVS := $(wildcard assets/breaks/*.wav)
 
-MAKEROM := /tmp/opencode/libs/Project_CTR/makerom/bin/makerom
+MAKEROM := /tmp/opencode/Project_CTR/makerom/bin/makerom
 BANNERTOOL := /tmp/opencode/libs/bannertool/output/linux-x86_64/bannertool
 
 TARGET := build/amenity3ds

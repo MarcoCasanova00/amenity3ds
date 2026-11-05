@@ -15,9 +15,10 @@ SECTIONS
 		*(.rodata*)
 	} >ROM
 
-	.data : AT(ADDR(.text) + SIZEOF(.text)) {
+	.data : AT(ALIGN(LOADADDR(.text) + SIZEOF(.text), 4)) {
 		__data_vma = .;
 		*(.data*)
+		. = ALIGN(4);
 		__data_end = .;
 	} >EWRAM
 	__data_lma = LOADADDR(.data);

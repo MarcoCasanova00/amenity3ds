@@ -39,7 +39,7 @@ _wave_addr = _wave_addr + 1
         ldh (_NR30_REG),a
         ld a, #0xFE             ; length of wave
         ldh (_NR31_REG),a
-        ld a, #0x10             ; volume (100%)
+        ld a, #0x20             ; volume (100%, NR32 bit5)
         ldh (_NR32_REG),a
         xor a                   ; low freq bits are zero
         ldh (_NR33_REG),a

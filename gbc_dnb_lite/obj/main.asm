@@ -11,6 +11,7 @@
 	.globl _main
 	.globl _tim_isr
 	.globl _play_break0
+	.globl _play_isr
 	.globl _putchar
 	.globl _gotoxy
 	.globl _set_interrupts
@@ -497,54 +498,7 @@ _jack_pulse:
 	ldh	(_NR24_REG + 0), a
 ;src/main.c:87: }
 	ret
-;src/main.c:89: static void set_bpm_tma(void) {
-;	---------------------------------
-; Function set_bpm_tma
-; ---------------------------------
-_set_bpm_tma:
-;src/main.c:91: UINT8 tma = 246 - (UINT8)(((bpm - 61) * 25u) / 100u);
-	ld	hl, #_bpm
-	ld	a, (hl+)
-	add	a, #0xc3
-	ld	c, a
-	ld	a, (hl)
-	adc	a, #0xff
-	ld	b, a
-	ld	l, c
-	ld	h, b
-	add	hl, hl
-	add	hl, bc
-	add	hl, hl
-	add	hl, hl
-	add	hl, hl
-	add	hl, bc
-	ld	bc, #0x0064
-	ld	e, l
-	ld	d, h
-	call	__divuint
-	ld	a, #0xf6
-	sub	a, c
-	ld	c, a
-;src/main.c:92: if (tma > 246) tma = 246;
-	ld	a, #0xf6
-	sub	a, c
-	jr	NC, 00102$
-	ld	c, #0xf6
-00102$:
-;src/main.c:93: if (tma < 199) tma = 199;
-	ld	a, c
-	sub	a, #0xc7
-	jr	NC, 00104$
-	ld	c, #0xc7
-00104$:
-;src/main.c:94: __critical { rTMA = tma; }
-	di
-	ld	a, c
-	ldh	(_TMA_REG + 0), a
-	ei
-;src/main.c:95: }
-	ret
-;src/main.c:97: void main(void) {
+;src/main.c:89: void main(void) {
 ;	---------------------------------
 ; Function main
 ; ---------------------------------
@@ -552,83 +506,89 @@ _main::
 	add	sp, #-9
 ;../gbc/gbdk/include/gb/gb.h:743: __asm__("di");
 	di
-;src/main.c:99: NR52_REG = 0x80;
+;src/main.c:91: NR52_REG = 0x80;
 	ld	a, #0x80
 	ldh	(_NR52_REG + 0), a
-;src/main.c:100: NR50_REG = 0x77;
+;src/main.c:92: NR50_REG = 0x77;
 	ld	a, #0x77
 	ldh	(_NR50_REG + 0), a
-;src/main.c:101: NR51_REG = 0xFF;
+;src/main.c:93: NR51_REG = 0xFF;
 	ld	a, #0xff
 	ldh	(_NR51_REG + 0), a
-;src/main.c:102: rTMA = 240;
+;src/main.c:94: rTMA = 240;
 	ld	a, #0xf0
 	ldh	(_TMA_REG + 0), a
-;src/main.c:103: rTAC = 0x04;
+;src/main.c:95: rTAC = 0x04;
 	ld	a, #0x04
 	ldh	(_TAC_REG + 0), a
-;src/main.c:104: set_interrupts(VBL_IFLAG | TIM_IFLAG);
+;src/main.c:96: set_interrupts(VBL_IFLAG | TIM_IFLAG);
 	ld	a, #0x05
 	push	af
 	inc	sp
 	call	_set_interrupts
 	inc	sp
-;src/main.c:105: add_TIM(tim_isr);
+;src/main.c:97: add_TIM(tim_isr);
 	ld	de, #_tim_isr
+	push	de
+	call	_add_TIM
+	pop	hl
+;src/main.c:98: add_TIM(play_isr);
+	ld	de, #_play_isr
 	push	de
 	call	_add_TIM
 	inc	sp
 	inc	sp
 ;../gbc/gbdk/include/gb/gb.h:727: __asm__("ei");
 	ei
-;src/main.c:108: UINT8 prevkeys = 0xFF;
+;src/main.c:101: UINT8 prevkeys = 0xFF;
 	ldhl	sp,	#0
 	ld	(hl), #0xff
-;src/main.c:109: draw_screen();
+;src/main.c:102: draw_screen();
 	call	_draw_screen
-00147$:
-;src/main.c:112: UINT8 keys = joypad();
+00142$:
+;src/main.c:105: UINT8 keys = joypad();
 	call	_joypad
 	ld	c, a
-;src/main.c:113: UINT8 down = keys & ~prevkeys;
+;src/main.c:106: UINT8 down = keys & ~prevkeys;
 	ldhl	sp,	#0
 	ld	a, (hl)
 	cpl
 	and	a, c
-	ldhl	sp,	#6
-	ld	(hl), a
-;src/main.c:114: prevkeys = keys;
-	ldhl	sp,	#0
+	ld	e, a
+;src/main.c:107: prevkeys = keys;
 	ld	(hl), c
-;src/main.c:116: if (down & J_RIGHT) { cur = (cur + 1) % NBREAKS; if (running) start_break(); draw_screen(); }
-	push	hl
-	ldhl	sp,	#8
-	bit	0, (hl)
-	pop	hl
+;src/main.c:109: if (down & J_RIGHT) { cur = (cur + 1) % NBREAKS; if (running) start_break(); draw_screen(); }
+	bit	0, e
 	jr	Z, 00104$
 	ld	hl, #_cur
-	ld	e, (hl)
-	ld	d, #0x00
-	inc	de
+	ld	l, (hl)
+;	spillPairReg hl
+;	spillPairReg hl
+	ld	h, #0x00
+;	spillPairReg hl
+;	spillPairReg hl
+	inc	hl
+	ld	d, h
+	push	de
 	ld	bc, #0x0001
+	ld	e, l
 	call	__modsint
+	pop	de
 	ld	hl, #_cur
 	ld	(hl), c
 	ld	a, (#_running)
 	or	a, a
 	jr	Z, 00102$
+	push	de
 	call	_start_break
+	pop	de
 00102$:
+	push	de
 	call	_draw_screen
+	pop	de
 00104$:
-;src/main.c:117: if (down & J_LEFT)  { cur = (cur + NBREAKS - 1) % NBREAKS; if (running) start_break(); draw_screen(); }
-	ldhl	sp,	#6
-	ld	a, (hl+)
-	and	a, #0x02
-	ld	(hl+), a
-	ld	(hl), #0x00
-	dec	hl
-	or	a, #0x00
+;src/main.c:110: if (down & J_LEFT)  { cur = (cur + NBREAKS - 1) % NBREAKS; if (running) start_break(); draw_screen(); }
+	bit	1, e
 	jr	Z, 00108$
 	xor	a, a
 ;	spillPairReg hl
@@ -637,15 +597,16 @@ _main::
 	ld	a, (#_running)
 	or	a, a
 	jr	Z, 00106$
+	push	de
 	call	_start_break
+	pop	de
 00106$:
+	push	de
 	call	_draw_screen
+	pop	de
 00108$:
-;src/main.c:118: if (down & J_UP)    { if (bpm < 250) { bpm++; set_bpm_tma(); } draw_screen(); }
-	push	hl
-	ldhl	sp,	#8
-	bit	2, (hl)
-	pop	hl
+;src/main.c:111: if (down & J_UP)    { if (bpm < 250) { bpm++; } draw_screen(); }
+	bit	2, e
 	jr	Z, 00112$
 	ld	hl, #_bpm
 	ld	a, (hl+)
@@ -655,19 +616,17 @@ _main::
 	jr	NC, 00110$
 	dec	hl
 	inc	(hl)
-	jr	NZ, 00263$
+	jr	NZ, 00249$
 	inc	hl
 	inc	(hl)
-00263$:
-	call	_set_bpm_tma
+00249$:
 00110$:
+	push	de
 	call	_draw_screen
+	pop	de
 00112$:
-;src/main.c:119: if (down & J_DOWN)  { if (bpm > 61)  { bpm--; set_bpm_tma(); } draw_screen(); }
-	push	hl
-	ldhl	sp,	#8
-	bit	3, (hl)
-	pop	hl
+;src/main.c:112: if (down & J_DOWN)  { if (bpm > 61)  { bpm--; } draw_screen(); }
+	bit	3, e
 	jr	Z, 00116$
 	ld	hl, #_bpm
 	ld	a, #0x3d
@@ -677,72 +636,78 @@ _main::
 	sbc	a, (hl)
 	jr	NC, 00114$
 	ld	hl, #_bpm
-	ld	a, (hl+)
-	ld	e, a
-	ld	a, (hl-)
-	ld	d, a
-	dec	de
-	ld	a, e
-	ld	(hl+), a
-	ld	(hl), d
-	call	_set_bpm_tma
-00114$:
-	call	_draw_screen
-00116$:
-;src/main.c:120: if (down & (J_A | J_START)) {
-	ldhl	sp,	#6
 	ld	a, (hl)
+	add	a, #0xff
+	ld	(hl+), a
+	ld	a, (hl)
+	adc	a, #0xff
+	ld	(hl), a
+00114$:
+	push	de
+	call	_draw_screen
+	pop	de
+00116$:
+;src/main.c:113: if (down & (J_A | J_START)) {
+	ld	a, e
 	and	a, #0x90
 	jr	Z, 00120$
-;src/main.c:121: running = !running;
+;src/main.c:114: running = !running;
 	ld	hl, #_running
 	ld	a, (hl)
 	sub	a,#0x01
 	ld	a, #0x00
 	rla
 	ld	(hl), a
-;src/main.c:122: pulse_count = 0;
+;src/main.c:115: pulse_count = 0;
 	xor	a, a
 	ld	hl, #_pulse_count
 	ld	(hl+), a
 	ld	(hl), a
-;src/main.c:123: ck_ph = 0;
+;src/main.c:116: ck_ph = 0;
 	xor	a, a
 	ld	hl, #_ck_ph
 	ld	(hl+), a
 	ld	(hl+), a
 	ld	(hl+), a
 	ld	(hl), a
-;src/main.c:124: if (running) start_break();
+;src/main.c:117: if (running) start_break();
 	ld	a, (#_running)
 	or	a, a
 	jr	Z, 00118$
+	push	de
 	call	_start_break
+	pop	de
 00118$:
-;src/main.c:125: draw_screen();
+;src/main.c:118: draw_screen();
+	push	de
 	call	_draw_screen
+	pop	de
 00120$:
-;src/main.c:127: if (down & J_B) { clk_mode = (clk_mode + 1) % 3; draw_screen(); }
-	push	hl
-	ldhl	sp,	#8
-	bit	5, (hl)
-	pop	hl
+;src/main.c:120: if (down & J_B) { clk_mode = (clk_mode + 1) % 3; draw_screen(); }
+	bit	5, e
 	jr	Z, 00122$
 	ld	hl, #_clk_mode
-	ld	e, (hl)
-	ld	d, #0x00
-	inc	de
+	ld	l, (hl)
+;	spillPairReg hl
+;	spillPairReg hl
+	ld	h, #0x00
+;	spillPairReg hl
+;	spillPairReg hl
+	inc	hl
+	ld	d, h
+	push	de
 	ld	bc, #0x0003
+	ld	e, l
 	call	__modsint
+	pop	de
 	ld	hl, #_clk_mode
 	ld	(hl), c
+	push	de
 	call	_draw_screen
+	pop	de
 00122$:
-;src/main.c:128: if (down & J_SELECT) { dest = !dest; draw_screen(); }
-	push	hl
-	ldhl	sp,	#8
-	bit	6, (hl)
-	pop	hl
+;src/main.c:121: if (down & J_SELECT) { dest = !dest; draw_screen(); }
+	bit	6, e
 	jr	Z, 00124$
 	ld	hl, #_dest
 	ld	a, (hl)
@@ -752,33 +717,17 @@ _main::
 	ld	(hl), a
 	call	_draw_screen
 00124$:
-;src/main.c:129: if (down & J_LEFT) { /* metronome toggle (channel 1) via vol on/off */
-	ldhl	sp,	#8
-	ld	a, (hl-)
-	or	a, (hl)
-	jr	Z, 00129$
-;src/main.c:130: if (NR12_REG == 0x00) NR12_REG = 0xF1; else NR12_REG = 0x00;
-	ld	a, (#_NR12_REG)
-	or	a, a
-	jr	NZ, 00126$
-	ld	a, #0xf1
-	ldh	(_NR12_REG + 0), a
-	jr	00129$
-00126$:
-	xor	a, a
-	ldh	(_NR12_REG + 0), a
-00129$:
-;src/main.c:134: if (running && play_length == 0) start_break();
+;src/main.c:124: if (running && play_length == 0) start_break();
 	ld	a, (#_running)
 	or	a, a
-	jr	Z, 00131$
+	jr	Z, 00126$
 	ld	hl, #_play_length + 1
 	ld	a, (hl-)
 	or	a, (hl)
-	jr	NZ, 00131$
+	jr	NZ, 00126$
 	call	_start_break
-00131$:
-;src/main.c:138: UINT32 now = g_tick;
+00126$:
+;src/main.c:128: UINT32 now = g_tick;
 	ld	hl, #_g_tick
 	ld	d, h
 	ld	e, l
@@ -794,11 +743,11 @@ _main::
 	inc	de
 	ld	a, (de)
 	ld	(hl), a
-;src/main.c:137: if (running) {
+;src/main.c:127: if (running) {
 	ld	a, (#_running)
 	or	a, a
-	jp	Z, 00142$
-;src/main.c:139: UINT32 dt = now - ck_last;
+	jp	Z, 00137$
+;src/main.c:129: UINT32 dt = now - ck_last;
 	ldhl	sp,#1
 	ld	a, (hl+)
 	ld	e, a
@@ -829,24 +778,46 @@ _main::
 	sbc	a, (hl)
 	ldhl	sp,	#8
 	ld	(hl-), a
-	ld	(hl), e
-;src/main.c:140: ck_last = now;
+	ld	a, e
+	ld	(hl-), a
+	dec	hl
+	ld	a, (hl+)
+	ld	c, a
+	ld	a, (hl+)
+	ld	b, a
+	ld	a, (hl+)
+	ld	e, a
+	ld	d, (hl)
+;src/main.c:130: ck_last = now;
 	ldhl	sp,	#1
-	ld	d, h
-	ld	e, l
-	ld	hl, #_ck_last
-	ld	a, (de)
-	ld	(hl+),	a
-	inc	de
-	ld	a, (de)
-	ld	(hl+),	a
-	inc	de
-	ld	a, (de)
-	ld	(hl+),	a
-	inc	de
-	ld	a, (de)
-	ld	(hl), a
-;src/main.c:141: ck_ph += dt;
+	ld	a, (hl)
+	ld	(#_ck_last),a
+	ldhl	sp,	#2
+	ld	a, (hl)
+	ld	(#_ck_last + 1),a
+	ldhl	sp,	#3
+	ld	a, (hl)
+	ld	(#_ck_last + 2),a
+	ldhl	sp,	#4
+	ld	a, (hl)
+	ld	(#_ck_last + 3),a
+;src/main.c:131: ck_ph += dt * 64;
+	ld	a, #0x06
+00254$:
+	sla	c
+	rl	b
+	rl	e
+	rl	d
+	dec	a
+	jr	NZ,00254$
+	ldhl	sp,	#5
+	ld	a, c
+	ld	(hl+), a
+	ld	a, b
+	ld	(hl+), a
+	ld	a, e
+	ld	(hl+), a
+	ld	(hl), d
 	ld	hl, #_ck_ph
 	ld	a, (hl+)
 	ld	e, a
@@ -877,7 +848,7 @@ _main::
 	ld	hl, #_ck_ph + 3
 	ld	(hl-), a
 	ld	(hl), e
-;src/main.c:142: UINT32 period_ms = 60000UL / ((UINT32)bpm * PPQN[clk_mode]);
+;src/main.c:132: UINT32 period = (256UL*60UL*64UL) / ((UINT32)bpm * PPQN[clk_mode]);
 	ld	a, (#_bpm)
 	ldhl	sp,	#5
 	ld	(hl), a
@@ -911,8 +882,8 @@ _main::
 	call	__mullong
 	push	de
 	push	bc
-	ld	bc, #0xea60
-	ld	de, #0x0000
+	ld	bc, #0x0000
+	ld	de, #0x000f
 	call	__divulong
 	ldhl	sp,	#5
 	ld	a, c
@@ -920,7 +891,7 @@ _main::
 	ld	a, b
 	ld	(hl+), a
 	ld	a, e
-;src/main.c:143: if (period_ms == 0) period_ms = 1;
+;src/main.c:133: if (period == 0) period = 1;
 	ld	(hl+), a
 	ld	(hl), d
 	dec	hl
@@ -929,15 +900,15 @@ _main::
 	or	a, (hl)
 	dec	hl
 	or	a, (hl)
-	jr	NZ, 00138$
+	jr	NZ, 00133$
 	ld	a, #0x01
 	ld	(hl+), a
 	xor	a, a
 	ld	(hl+), a
 	ld	(hl+), a
 	ld	(hl), a
-;src/main.c:144: while (ck_ph >= period_ms) {
-00138$:
+;src/main.c:134: while (ck_ph >= period) {
+00133$:
 	ld	de, #_ck_ph
 	ldhl	sp,	#5
 	ld	a, (de)
@@ -954,8 +925,8 @@ _main::
 	inc	hl
 	ld	a, (de)
 	sbc	a, (hl)
-	jp	C, 00147$
-;src/main.c:145: ck_ph -= period_ms;
+	jp	C, 00142$
+;src/main.c:135: ck_ph -= period;
 	ld	hl, #_ck_ph
 	ld	a, (hl+)
 	ld	e, a
@@ -986,17 +957,17 @@ _main::
 	ld	hl, #_ck_ph + 3
 	ld	(hl-), a
 	ld	(hl), e
-;src/main.c:146: pulse_count++;
+;src/main.c:136: pulse_count++;
 	ld	hl, #_pulse_count
 	inc	(hl)
-	jr	NZ, 00268$
+	jr	NZ, 00256$
 	inc	hl
 	inc	(hl)
-00268$:
-;src/main.c:147: if (dest) jack_pulse(pulse_count % 16 == 0);
+00256$:
+;src/main.c:137: if (dest) jack_pulse(pulse_count % 16 == 0);
 	ld	a, (#_dest)
 	or	a, a
-	jr	Z, 00136$
+	jr	Z, 00131$
 	ld	a, (#_pulse_count)
 	and	a, #0x0f
 	ld	c, a
@@ -1005,17 +976,17 @@ _main::
 	or	a, a
 	or	a, b
 	ld	a, #0x01
-	jr	Z, 00270$
+	jr	Z, 00258$
 	xor	a, a
-00270$:
+00258$:
 	call	_jack_pulse
-	jr	00138$
-00136$:
-;src/main.c:148: else send_edge();
+	jr	00133$
+00131$:
+;src/main.c:138: else send_edge();
 	call	_send_edge
-	jr	00138$
-00142$:
-;src/main.c:151: ck_last = g_tick;
+	jr	00133$
+00137$:
+;src/main.c:141: ck_last = g_tick;
 	ldhl	sp,	#1
 	ld	d, h
 	ld	e, l
@@ -1031,15 +1002,15 @@ _main::
 	inc	de
 	ld	a, (de)
 	ld	(hl), a
-;src/main.c:152: ck_ph = 0;
+;src/main.c:142: ck_ph = 0;
 	xor	a, a
 	ld	hl, #_ck_ph
 	ld	(hl+), a
 	ld	(hl+), a
 	ld	(hl+), a
 	ld	(hl), a
-	jp	00147$
-;src/main.c:155: }
+	jp	00142$
+;src/main.c:145: }
 	add	sp, #9
 	ret
 	.area _CODE
