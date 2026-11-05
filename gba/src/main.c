@@ -47,26 +47,66 @@ static int brk_len_for(int i) {
 }
 
 // ---- Direct Sound state ----------------------------------------------------
+// Pitch-locked time-stretch (HobbyChop style): the FIFO drain clock is fixed
+// at BASE_RATE, so pitch never changes.  Tempo follows BPM via drop/repeat
+// resampling: the source cursor always advances one sample per output sample
+// (pitch locked), and a tempo-error accumulator drops a source sample when
+// running faster than 1:1 or repeats one when running slower, so the average
+// source advance equals bpm / BASE_BPM.  Linear interpolation smooths the
+// int8 source.
 static int8_t abuf[ABUF_SIZE] __attribute__((aligned(4)));
 static int cur_len = 0;         // current break length in samples (mult of 4)
-static uint32_t pp = 0;         // next sample byte offset into abuf
-static uint32_t frac = 0;       // sub-frame accumulator (1/60 units)
+static uint32_t ipos = 0;       // source sample index (loop-wrapped)
+static uint32_t fpos = 0;       // 16-bit fractional source position
+static uint32_t step = 1u << 16; // tempo target (bpm/BASE_BPM in Q16)
+static int32_t terr = 0;        // tempo-correction accumulator (Q16)
+static uint32_t outacc = 0;     // output-sample accumulator (per 60 Hz call)
+static uint32_t wbuf = 0;       // byte-assembly buffer (4 bytes -> one FIFO word)
+static unsigned wcnt = 0;
 
 static void fifo_silence(void) {
 	for (int i = 0; i < 4; i++) REG_FIFO_A = 0;
 }
 
-static void push_words(unsigned n) {
-	while (n--) {
-		const int8_t* s = abuf + pp;
-		uint32_t w = (uint32_t)(uint8_t)s[0]
-		  | ((uint32_t)(uint8_t)s[1] << 8)
-		  | ((uint32_t)(uint8_t)s[2] << 16)
-		  | ((uint32_t)(uint8_t)s[3] << 24);
-		REG_FIFO_A = w;
-		pp += 4;
-		if (pp >= (uint32_t)cur_len) pp -= (uint32_t)cur_len;
+static void push_sample(int v) {
+	wbuf |= ((uint32_t)(uint8_t)v) << (8 * wcnt);
+	if (++wcnt == 4) {
+		REG_FIFO_A = wbuf;
+		wbuf = 0;
+		wcnt = 0;
 	}
+}
+
+static int audio_sample(void) {
+	int a = abuf[ipos];
+	int j = ipos + 1;
+	if ((uint32_t)j >= (uint32_t)cur_len) j = 0;
+	int b = abuf[j];
+	return a + ((b - a) * (int)fpos >> 16);
+}
+
+// Advance the source cursor by exactly one output sample (fixed rate -> pitch
+// stays locked), then apply a tempo correction: drop a source sample when
+// running faster than 1:1, repeat one when running slower.  Over time the
+// average source advance equals step = bpm / BASE_BPM, but the local rate
+// (and therefore pitch) never changes.
+static int audio_next(void) {
+	int v = audio_sample();
+	fpos += 1u << 16;            // +1.0 output-rate advance
+	if (fpos >= 0x10000) {
+		fpos -= 0x10000;
+		ipos++;
+	}
+	terr += (int32_t)(step - (1u << 16));
+	if (terr >= (int32_t)(1u << 16)) {
+		terr -= (int32_t)(1u << 16);
+		ipos++;                  // drop: jump one source sample
+	} else if (terr <= -(int32_t)(1u << 16)) {
+		terr += (int32_t)(1u << 16);
+		if (ipos) ipos--;       // repeat: go back one source sample
+	}
+	if (ipos >= (uint32_t)cur_len) ipos -= (uint32_t)cur_len;
+	return v;
 }
 
 static void audio_start_break(void) {
@@ -77,46 +117,36 @@ static void audio_start_break(void) {
 	int len = brk_len_for(cur) & ~3;
 	memcpy(abuf, BRK[cur], (size_t)len);
 	cur_len = len;
-	pp = 0;
-	frac = 0;
-	push_words(4);               // prefill
+	step = ((uint32_t)bpm << 16) / BASE_BPM;
+	terr = 0;
+	ipos = 0;
+	fpos = 0;
+	outacc = 0;
+	wbuf = 0;
+	wcnt = 0;
+	for (int i = 0; i < 4; i++) push_sample(audio_next());   // prefill
 }
 
 static void audio_stop(void) {
 	fifo_silence();
 }
 
-// Re-arm Timer 0 at the sample rate that matches the current BPM.  Direct
-// Sound drains the FIFO at this rate, so this is what actually controls the
-// break's tempo/pitch.
-static void audio_set_rate(void) {
-	uint32_t rate = ((uint32_t)BASE_RATE * (uint32_t)bpm) / BASE_BPM;
-	uint32_t p0 = 16777216u / rate;
-	if (p0 < 4) p0 = 4;
-	if (p0 > 65535) p0 = 65535;
-	REG_TM0CNT_H = 0x0000;         // stop while retiming
-	REG_TM0CNT_L = (uint16_t)(65536u - p0);
-	REG_TM0CNT_H = 0x0080;         // enable, 1-cycle prescale, no IRQ
-}
+// Push one 60 Hz frame worth of output samples (always BASE_RATE per second),
+// paced in BATCHES sub-batches so the 32-byte FIFO stays balanced.
+static void audio_frame_pump(void) {
+	outacc += BASE_RATE;
+	uint32_t n = outacc / 60;
+	outacc -= n * 60;
 
-// Push one 60 Hz frame worth of samples, paced in BATCHES sub-batches so
-// the 32-byte FIFO stays balanced.  wv is the current scanline (0..159).
-static void audio_frame_pump(unsigned wv) {
-	uint32_t rate = ((uint32_t)BASE_RATE * (uint32_t)bpm) / BASE_BPM;
-	uint32_t n = rate / 60;
-	frac += rate % 60;
-	if (frac >= 60) { frac -= 60; n++; }
-	uint32_t words = n / 4;
-
-	unsigned line = wv + 1;
 	for (unsigned b = 0; b < BATCHES; b++) {
 		unsigned tgt = (b + 1) * (160u / BATCHES);
 		while (REG_VCOUNT < tgt) ;
-		unsigned batch = (words + (BATCHES - 1 - b)) / (BATCHES - b);
-		if (batch) { push_words(batch); words -= batch; }
-		if (words == 0) break;
+		unsigned batch = (n + (BATCHES - 1 - b)) / (BATCHES - b);
+		if (batch > n) batch = n;
+		for (unsigned k = 0; k < batch; k++) push_sample(audio_next());
+		n -= batch;
+		if (n == 0) break;
 	}
-	(void)line;
 }
 
 // ---- PSG kit fallback (channels 1 & 4) ------------------------------------
@@ -212,8 +242,10 @@ void main(void) {
 	REG_SOUNDCNT_L = 0xFF77;       // PSG ch1-4 both sides, max volume
 	REG_SOUNDCNT_H = 0x0306;       // PSG 100%, DS A 100% to L+R, Timer 0
 
-	// Timer 0 = sample clock.  No interrupts anywhere.
-	audio_set_rate();
+	// Timer 0 = sample clock, fixed at BASE_RATE so pitch stays locked.
+	// Tempo is handled by the fractional source step (see audio_step).
+	REG_TM0CNT_L = 65536u - (16777216u / BASE_RATE);
+	REG_TM0CNT_H = 0x0080;         // enable, 1-cycle prescale, no IRQ
 	REG_TM1CNT_H = 0x0000;
 
 	audio_start_break();
@@ -225,7 +257,6 @@ void main(void) {
 	for (;;) {
 		// Wait for the start of active display (60 Hz frame boundary).
 		while (REG_VCOUNT >= 160) ;
-		unsigned wv = REG_VCOUNT;
 
 		int keys = REG_KEYINPUT ^ 0x03FF;
 		int down = keys & ~prev_keys;
@@ -244,10 +275,10 @@ void main(void) {
 			need_draw = 1;
 		}
 		if (down & KEY_UP) {
-			if (bpm < 250) { bpm++; audio_set_rate(); need_draw = 1; }
+			if (bpm < 250) { bpm++; step = ((uint32_t)bpm << 16) / BASE_BPM; terr = 0; need_draw = 1; }
 		}
 		if (down & KEY_DOWN) {
-			if (bpm > 61) { bpm--; audio_set_rate(); need_draw = 1; }
+			if (bpm > 61) { bpm--; step = ((uint32_t)bpm << 16) / BASE_BPM; terr = 0; need_draw = 1; }
 		}
 		if (down & (KEY_A | KEY_START)) {
 			running = !running;
@@ -281,8 +312,9 @@ void main(void) {
 		}
 
 		// Stream the break (Direct Sound mode), paced across the active
-		// display (VCOUNT ascends 0..159), then draw.
-		if (running && snd_mode == 0) audio_frame_pump(wv);
+		// display (VCOUNT ascends 0..159), then draw. BPM changes tempo
+		// (source step) but not pitch (fixed output clock).
+		if (running && snd_mode == 0) audio_frame_pump();
 
 		if (need_draw) {
 			draw_ui();
