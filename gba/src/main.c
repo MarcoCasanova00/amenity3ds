@@ -1,14 +1,21 @@
-// GBA DnB break player — 8-bit Direct Sound FIFO + PSG kit fallback.
+// GBA DnB break player — 8-bit Direct Sound FIFO (CPU-fed, IRQ-free)
+// + PSG kit fallback.
 //
-// Audio path (this is the part that used to be silent):
+// Audio path:
 //   * Direct Sound FIFOs are 8-bit, one byte per Timer-0 overflow.
-//   * Timer 0 therefore runs at the sample rate (22.05 kHz at 175 BPM).
-//   * Timer 1 runs at exactly one quarter of that rate and its IRQ pushes
-//     four 8-bit samples (one 32-bit FIFO word) per tick.
-//   * GBA IME is bit 0 (not 0x8000), and timer reloads are 65536-period.
+//   * Timer 0 runs at the sample rate (22.05 kHz at 175 BPM) and simply
+//     drains the FIFO; the hardware needs no IRQ for this.
+//   * The selected break is copied into an EWRAM buffer.  The main loop
+//     (60 Hz, synced to VBlank) pushes exactly one frame's worth of samples
+//     into FIFO A, spread across 16 VCOUNT-paced sub-batches so the small
+//     32-byte FIFO never overflows.
+//   * No interrupts at all: mGBA's HLE dispatches timer IRQs ~15x per
+//     overflow, which would speed the break up drastically and starve the
+//     UI.  The CPU-fed path is immune to that.
 //
 // UI: Mode 3, redrawn only on change (no flicker).
 #include <stdint.h>
+#include <string.h>
 
 #include "regs.h"
 #include "gfx.h"
@@ -17,6 +24,8 @@
 #define NBREAKS 4
 #define BASE_BPM 175
 #define BASE_RATE 22050
+#define ABUF_SIZE 131072          // >= longest break (CLN086 = 123466 samples)
+#define BATCHES 16
 
 static int cur = 0, bpm = BASE_BPM, running = 0;
 static int snd_mode = 0;        // 0 = Direct Sound break, 1 = PSG kit
@@ -37,88 +46,64 @@ static int brk_len_for(int i) {
 	}
 }
 
-// ---- Direct Sound state (read by the Timer-1 IRQ) -------------------------
-static const int8_t* volatile a_src;
-static volatile int a_len;
-static volatile int a_pos;
-static volatile int a_active;
-
-
-
-void audio_tick(void) {
-	uint32_t w = 0;
-	if (a_active) {
-		const int8_t* s = (const int8_t*)a_src;
-		int p = a_pos;
-		if (p + 4 > a_len) p = 0;
-		w = (uint32_t)(uint8_t)s[p]
-		  | ((uint32_t)(uint8_t)s[p + 1] << 8)
-		  | ((uint32_t)(uint8_t)s[p + 2] << 16)
-		  | ((uint32_t)(uint8_t)s[p + 3] << 24);
-		p += 4;
-		if (p >= a_len) p = 0;
-		a_pos = p;
-	}
-	REG_FIFO_A = w;
-}
-
-void irq_handler(void) __attribute__((naked));
-void irq_handler(void) {
-	__asm volatile(
-		"push {r0-r3,r12,lr}\n\t"
-		"ldr r0, =0x04000202\n\t"      // REG_IF
-		"ldr r1, [r0]\n\t"
-		"tst r1, #0x10\n\t"            // Timer 1?
-		"beq 1f\n\t"
-		"mov r1, #0x10\n\t"
-		"str r1, [r0]\n\t"             // write-1-to-clear
-		"bl audio_tick\n\t"
-		"1:\n\t"
-		"pop {r0-r3,r12,lr}\n\t"
-		"bx lr\n\t"
-	);
-}
-
-static void fifo_prefill(void) {
-	for (int i = 0; i < 4; i++) audio_tick();
-}
+// ---- Direct Sound state ----------------------------------------------------
+static int8_t abuf[ABUF_SIZE] __attribute__((aligned(4)));
+static int cur_len = 0;         // current break length in samples (mult of 4)
+static uint32_t pp = 0;         // next sample byte offset into abuf
+static uint32_t frac = 0;       // sub-frame accumulator (1/60 units)
 
 static void fifo_silence(void) {
 	for (int i = 0; i < 4; i++) REG_FIFO_A = 0;
 }
 
+static void push_words(unsigned n) {
+	while (n--) {
+		const int8_t* s = abuf + pp;
+		uint32_t w = (uint32_t)(uint8_t)s[0]
+		  | ((uint32_t)(uint8_t)s[1] << 8)
+		  | ((uint32_t)(uint8_t)s[2] << 16)
+		  | ((uint32_t)(uint8_t)s[3] << 24);
+		REG_FIFO_A = w;
+		pp += 4;
+		if (pp >= (uint32_t)cur_len) pp -= (uint32_t)cur_len;
+	}
+}
+
 static void audio_start_break(void) {
-	a_src = BRK[cur];
-	a_len = brk_len_for(cur) & ~3;
-	a_pos = 0;
-	a_active = (snd_mode == 0);
-	if (a_active) fifo_prefill();
-	else fifo_silence();
+	if (snd_mode == 1) {
+		fifo_silence();
+		return;
+	}
+	int len = brk_len_for(cur) & ~3;
+	memcpy(abuf, BRK[cur], (size_t)len);
+	cur_len = len;
+	pp = 0;
+	frac = 0;
+	push_words(4);               // prefill
 }
 
 static void audio_stop(void) {
-	a_active = 0;
+	fifo_silence();
 }
 
-static void timers_stop(void) {
-	REG_TM0CNT_H = 0x0000;
-	REG_TM1CNT_H = 0x0000;
-}
-
-// Timer 0 = sample clock, Timer 1 = 1/4 sample clock (4 samples per IRQ).
-static void timers_start(void) {
+// Push one 60 Hz frame worth of samples, paced in BATCHES sub-batches so
+// the 32-byte FIFO stays balanced.  wv is the current scanline (0..159).
+static void audio_frame_pump(unsigned wv) {
 	uint32_t rate = ((uint32_t)BASE_RATE * (uint32_t)bpm) / BASE_BPM;
-	uint32_t p0 = 16777216u / rate;
-	uint32_t p1;
-	if (p0 < 4) p0 = 4;
-	p1 = p0 * 4;
-	if (p1 > 65535) p1 = 65535;
+	uint32_t n = rate / 60;
+	frac += rate % 60;
+	if (frac >= 60) { frac -= 60; n++; }
+	uint32_t words = n / 4;
 
-	timers_stop();
-	REG_TM0CNT_L = (uint16_t)(65536u - p0);
-	REG_TM1CNT_L = (uint16_t)(65536u - p1);
-	REG_TM0CNT_H = 0x0080;         // enable, 1-cycle prescale, no IRQ
-	REG_TM1CNT_H = 0x00C0;         // enable, 1-cycle prescale, Timer-1 IRQ
+	unsigned line = wv + 1;
+	for (unsigned b = 0; b < BATCHES; b++) {
+		unsigned tgt = (b + 1) * (160u / BATCHES);
+		while (REG_VCOUNT < tgt) ;
+		unsigned batch = (words + (BATCHES - 1 - b)) / (BATCHES - b);
+		if (batch) { push_words(batch); words -= batch; }
+		if (words == 0) break;
+	}
+	(void)line;
 }
 
 // ---- PSG kit fallback (channels 1 & 4) ------------------------------------
@@ -214,22 +199,21 @@ void main(void) {
 	REG_SOUNDCNT_L = 0xFF77;       // PSG ch1-4 both sides, max volume
 	REG_SOUNDCNT_H = 0x0306;       // PSG 100%, DS A 100% to L+R, Timer 0
 
-	REG_IF = 0xFFFF;
-	*(volatile void**)0x03007FFC = (void*)irq_handler;
-	REG_IE = IE_TIMER1;
-	REG_IME = 0x0001;
+	// Timer 0 = sample clock.  No interrupts anywhere.
+	REG_TM0CNT_L = 65536u - (16777216u / BASE_RATE);
+	REG_TM0CNT_H = 0x0080;         // enable, 1-cycle prescale, no IRQ
+	REG_TM1CNT_H = 0x0000;
 
 	audio_start_break();
 	running = 1;
-	timers_start();
 
 	int prev_keys = 0;
 	int need_draw = 1;
 
 	for (;;) {
-		// Run the UI/sequencer at 60 Hz.
+		// Wait for the start of active display (60 Hz frame boundary).
 		while (REG_VCOUNT >= 160) ;
-		while (REG_VCOUNT < 160) ;
+		unsigned wv = REG_VCOUNT;
 
 		int keys = REG_KEYINPUT ^ 0x03FF;
 		int down = keys & ~prev_keys;
@@ -248,10 +232,10 @@ void main(void) {
 			need_draw = 1;
 		}
 		if (down & KEY_UP) {
-			if (bpm < 250) { bpm++; timers_start(); need_draw = 1; }
+			if (bpm < 250) { bpm++; need_draw = 1; }
 		}
 		if (down & KEY_DOWN) {
-			if (bpm > 61) { bpm--; timers_start(); need_draw = 1; }
+			if (bpm > 61) { bpm--; need_draw = 1; }
 		}
 		if (down & (KEY_A | KEY_START)) {
 			running = !running;
@@ -284,9 +268,16 @@ void main(void) {
 			}
 		}
 
+		// Stream the break (Direct Sound mode), paced across the active
+		// display (VCOUNT ascends 0..159), then draw.
+		if (running && snd_mode == 0) audio_frame_pump(wv);
+
 		if (need_draw) {
 			draw_ui();
 			need_draw = 0;
 		}
+
+		// Remain until VBlank (consumes the rest of the active display).
+		while (REG_VCOUNT < 160) ;
 	}
 }
