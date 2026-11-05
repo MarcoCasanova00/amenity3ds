@@ -35,6 +35,10 @@ static unsigned psg_frame = 0;
 static const char* const BREAK_NAMES[NBREAKS] = {
 	"CLN086", "CLN105", "PRC095", "PRC098"
 };
+// Native tempo of each break (from the 3DS bank metadata).  The displayed
+// BPM is the real musical tempo: step = bpm / native_bpm, so at bpm == native
+// the break plays 1:1 at its natural speed.
+static const int NATIVE_BPM[NBREAKS] = { 86, 105, 95, 98 };
 static const int8_t* const BRK[NBREAKS] = { brk0, brk1, brk2, brk3 };
 
 static int brk_len_for(int i) {
@@ -109,6 +113,16 @@ static int audio_next(void) {
 	return v;
 }
 
+// Set the displayed BPM and the drop/repeat step so the break plays at this
+// real tempo (pitch stays locked at the fixed output clock).
+static void set_bpm(int v) {
+	if (v < 61) v = 61;
+	if (v > 250) v = 250;
+	bpm = v;
+	step = ((uint32_t)bpm << 16) / (uint32_t)NATIVE_BPM[cur];
+	terr = 0;
+}
+
 static void audio_start_break(void) {
 	if (snd_mode == 1) {
 		fifo_silence();
@@ -117,7 +131,7 @@ static void audio_start_break(void) {
 	int len = brk_len_for(cur) & ~3;
 	memcpy(abuf, BRK[cur], (size_t)len);
 	cur_len = len;
-	step = ((uint32_t)bpm << 16) / BASE_BPM;
+	step = ((uint32_t)bpm << 16) / (uint32_t)NATIVE_BPM[cur];
 	terr = 0;
 	ipos = 0;
 	fpos = 0;
@@ -249,6 +263,7 @@ void main(void) {
 	REG_TM1CNT_H = 0x0000;
 
 	audio_start_break();
+	set_bpm(NATIVE_BPM[0]);        // auto-BPM on boot (matches 3DS)
 	running = 1;
 
 	int prev_keys = 0;
@@ -265,20 +280,24 @@ void main(void) {
 		if (down & KEY_RIGHT) {
 			audio_stop();
 			cur = (cur + 1) % NBREAKS;
+			set_bpm(NATIVE_BPM[cur]);   // auto-BPM on break select
 			audio_start_break();
 			need_draw = 1;
 		}
 		if (down & KEY_LEFT) {
 			audio_stop();
 			cur = (cur + NBREAKS - 1) % NBREAKS;
+			set_bpm(NATIVE_BPM[cur]);
 			audio_start_break();
 			need_draw = 1;
 		}
 		if (down & KEY_UP) {
-			if (bpm < 250) { bpm++; step = ((uint32_t)bpm << 16) / BASE_BPM; terr = 0; need_draw = 1; }
+			set_bpm(bpm + 1);
+			need_draw = 1;
 		}
 		if (down & KEY_DOWN) {
-			if (bpm > 61) { bpm--; step = ((uint32_t)bpm << 16) / BASE_BPM; terr = 0; need_draw = 1; }
+			set_bpm(bpm - 1);
+			need_draw = 1;
 		}
 		if (down & (KEY_A | KEY_START)) {
 			running = !running;
@@ -289,6 +308,7 @@ void main(void) {
 		if (down & KEY_B) {
 			audio_stop();
 			cur = 0;
+			set_bpm(NATIVE_BPM[0]);
 			audio_start_break();
 			need_draw = 1;
 		}
