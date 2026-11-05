@@ -86,6 +86,19 @@ static void audio_stop(void) {
 	fifo_silence();
 }
 
+// Re-arm Timer 0 at the sample rate that matches the current BPM.  Direct
+// Sound drains the FIFO at this rate, so this is what actually controls the
+// break's tempo/pitch.
+static void audio_set_rate(void) {
+	uint32_t rate = ((uint32_t)BASE_RATE * (uint32_t)bpm) / BASE_BPM;
+	uint32_t p0 = 16777216u / rate;
+	if (p0 < 4) p0 = 4;
+	if (p0 > 65535) p0 = 65535;
+	REG_TM0CNT_H = 0x0000;         // stop while retiming
+	REG_TM0CNT_L = (uint16_t)(65536u - p0);
+	REG_TM0CNT_H = 0x0080;         // enable, 1-cycle prescale, no IRQ
+}
+
 // Push one 60 Hz frame worth of samples, paced in BATCHES sub-batches so
 // the 32-byte FIFO stays balanced.  wv is the current scanline (0..159).
 static void audio_frame_pump(unsigned wv) {
@@ -200,8 +213,7 @@ void main(void) {
 	REG_SOUNDCNT_H = 0x0306;       // PSG 100%, DS A 100% to L+R, Timer 0
 
 	// Timer 0 = sample clock.  No interrupts anywhere.
-	REG_TM0CNT_L = 65536u - (16777216u / BASE_RATE);
-	REG_TM0CNT_H = 0x0080;         // enable, 1-cycle prescale, no IRQ
+	audio_set_rate();
 	REG_TM1CNT_H = 0x0000;
 
 	audio_start_break();
@@ -232,10 +244,10 @@ void main(void) {
 			need_draw = 1;
 		}
 		if (down & KEY_UP) {
-			if (bpm < 250) { bpm++; need_draw = 1; }
+			if (bpm < 250) { bpm++; audio_set_rate(); need_draw = 1; }
 		}
 		if (down & KEY_DOWN) {
-			if (bpm > 61) { bpm--; need_draw = 1; }
+			if (bpm > 61) { bpm--; audio_set_rate(); need_draw = 1; }
 		}
 		if (down & (KEY_A | KEY_START)) {
 			running = !running;
